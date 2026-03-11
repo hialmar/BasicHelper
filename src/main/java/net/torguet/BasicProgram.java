@@ -93,9 +93,13 @@ public class BasicProgram {
     }
 
     private int computeLineNumber(String line) {
-        int firstWhiteSpace = line.indexOf(' ');
+        // remove leading spaces
+        int start=0;
+        while(line.charAt(start)==' ')
+            start++;
+        int firstWhiteSpace = line.indexOf(' ', start);
         if (firstWhiteSpace == -1) return -1;
-        String lineNumber = line.substring(0, firstWhiteSpace);
+        String lineNumber = line.substring(start, firstWhiteSpace);
         return Integer.parseInt(lineNumber);
     }
 

@@ -91,6 +91,7 @@ public class BasicLoader {
                 }
                 i++;
             }
+            i++;
             fileOutputStream.write('\r');
             fileOutputStream.write('\n');
         }
