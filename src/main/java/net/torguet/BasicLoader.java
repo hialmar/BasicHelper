@@ -1,7 +1,6 @@
 package net.torguet;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.*;
 
 public class BasicLoader {
     private final BufferedReader bufferedReader;
@@ -24,6 +23,64 @@ public class BasicLoader {
 
     public BasicProgram getBasicProgram() {
         return basicProgram;
+    }
+
+
+    void tap2Bas(String inputFile, String destFile) throws IOException {
+        FileInputStream fileInputStream = new FileInputStream(inputFile);
+        DataOutputStream fileOutputStream = null;
+        if ((destFile != null) && (!destFile.isEmpty()))
+        {
+            fileOutputStream = new DataOutputStream(new FileOutputStream(destFile));
+        }
+        if (fileOutputStream == null)
+        {
+            System.err.println("Can't open file for writing\n");
+            return;
+        }
+
+        byte [] buffer = fileInputStream.readAllBytes();
+
+        if (buffer[0]!=0x16 || buffer[3]!=0x24)
+        {
+            System.err.println("Not an Oric file");
+        }
+        if (buffer[6]!=0)
+        {
+            System.err.println("Not a BASIC file");
+        }
+        int i=13;
+        while (buffer[i++]>0) {
+
+        }
+        while (buffer[i]>0 || buffer[i+1]>0)
+        {
+            i+=2;
+            fileOutputStream.writeShort(buffer[i]+(buffer[i+1]<<8));
+            i+=2;
+            short car;
+            while ((car=buffer[i++])>0)
+            {
+                if (car<128)
+                    fileOutputStream.write(car);
+                else
+                if (car < 247)
+                {
+                    fileOutputStream.writeUTF(BasicProgram.getKeywords()[car - 128]);
+                }
+                else
+                {
+                    // Probably corrupted listing
+                    // 247 : NEXT WITHOUT FOR
+                    fileOutputStream.writeUTF("CORRUPTED_ERROR_CODE");
+                    fileOutputStream.writeShort(car);
+                }
+            }
+            fileOutputStream.write('\r');
+            fileOutputStream.write('\n');
+        }
+
+        fileOutputStream.close();
     }
 
     public static void main(String[] args) throws Exception {
