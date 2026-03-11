@@ -1,0 +1,196 @@
+1 REM {++++ ORIC - NEMAUSUS RPG - April 2018 ++++}
+2 REM { Maximus (denis SOL)
+3 REM GOTO 300' saute l'intro pour tester la suite
+10 A=DEEK(#308):R=RND(-A)
+20 TEXT:CLS:PAPER0:INK3
+30 PRINT CHR$(17);CHR$(20)
+40 PRINTSPC(4);CHR$(4);CHR$(27);"JCEO GAMES STUDIOS ";CHR$(27)"BPRESENT"
+50 PRINT:PRINT:PRINT
+60 PRINTSPC(5);CHR$(27);"A";CHR$(27)"JA ROMAN RPG ADVENTURE";CHR$(4)
+70 PRINT:PRINT:PRINT
+80 PRINT "      "CHR$(27);"E";CHR$(96)" COLONIA NEMAUSENSIS":PRINT
+90 A$=CHR$(126):B$=CHR$(255)
+100 LP$=B$:FORI=1TO34:LP$=LP$+B$:NEXTI
+110 L$=B$:FORI=1TO33:L$=L$+B$:NEXTI:L$=L$+B$
+120 PRINT LP$
+130 PRINT B$;SPC(33);B$
+140 PRINT B$;"         AVE  HERO OF ROMA       ";B$
+150 PRINT B$;SPC(33);B$
+160 PRINT L$
+170 PRINT B$;SPC(33);B$
+180 PRINT B$;"    MAY  JUPITER    HELP  US     ";B$
+190 PRINT B$;SPC(33);B$
+200 PRINT B$;SPC(33);B$
+210 PRINT B$;"  NORTH   OF   HADRIAN'S  WALL   ";B$
+220 PRINT B$;SPC(33);B$
+230 PRINT LP$
+240 WAIT150:PLOT 29,24," SPACE >"
+250 GETA$:IF A$<>" " THEN 260
+260 PRINT CHR$(17);CHR$(20)
+270 A$="":B$="":LP$=""
+
+300 REM MESSAGE D'INTRO DE L'EMPEREUR
+305 PAPER0:INK7:HIRES:POKE#26A,PEEK(#26A) AND 254 'Vire le curseur
+306 PRINT:S$="<| EMPEROR LUCIUS VERUS OFFICE |>":GOSUB6000
+308 T1=1:T2=1'temporisation affichage
+310 CL=10:LINE=6:NLIGNE=19
+320 FORI=1TONL:READS$
+330   FORJ=1TOLEN(S$):CURSET CL,LI,0:CHARASC(MID$(S$,J,1)),0,1
+340    CL=CL+6:WAIT T1
+350   NEXTJ
+360 CL=10:LI=LI+10:WAIT T2
+370 NEXTI
+380 FORI=1TO5:ZAP:WAIT6:NEXT:EXPLODE:PRINT
+
+
+400 REM ++++++++++ CREATION ++++++++++++
+410 NR=6:P=1:TRY=1' NR: nombre de Roles (carrières)
+420 DEF FNA(X)=INT(RND(1)*X)+1:D=10:REM dice (D10)
+430 FORI=1TONR:READ ROLE$(I):NEXTI:REM 6 roles
+440 FORI=1TO 7:READ CULT$(I):NEXTI:REM 7 cultures (races)
+450 FORI=1TO 7:READ CARAC$(I):NEXTI:REM 7 CARACTERISTICS
+460 FOR R=1TO NR: FOR C=1TO7
+480  READ BR(R,C)
+490 NEXT C, R:REM ++ Bonus des Roles 
+500 PRINTSPC(8);CHR$(148);" ! GO ! < Press G >"CHR$(144)
+510 GETA$:IFA$<>"G" THEN 510
+
+600 REM creation du 1er héros (P)
+610 FORI=1TO6:BAG(P,I)=0:NEXTI:REM INITIALIZE BAG
+620 TEXT:CLS:PRINT:PRINTSPC(12);CHR$(4);CHR$(27)"JCEO RPG";CHR$(4)
+630 PRINT
+640 PRINT:S$=" ****** CREATE your 1st Hero ***** ":GOSUB 6000:PRINT
+650 PRINT:S$="HIS FORENAME (10 letters max)":GOSUB 6000
+660 INPUT NOM$(P)
+670 IF LEN(NOM$(P))< 2 THEN ZAP:GOTO 620
+680 IF LEN(NOM$(P))>10 THEN NOM$(P)=LEFT$(NOM$(P),10)
+690 GOSUB 5900:SS$=NOM$(P)
+
+700 TEST=0:GOSUB 15000
+710 PRINT @10,17;"WHICH Culture ? ";
+730 GET CULT$:CULT=VAL(CULT$)
+740 IF CU<1 OR CU>7 THEN ZAP:GOTO 700
+750 CP(1)=CU:PRINT CU$(CP(1))
+760 GOSUB 4000:IF OK$="N" THEN ZAP:GOTO 700 
+770 TEST=1:BOOL=0:SS$=SS$+" the "+CULT$(CP(1))
+
+800 GOSUB 15000
+810 PRINT @10,16;"WHICH ROLE ? ";
+830 GET RO$:ROLE=VAL(RO$)
+840 IF RO<1 OR RO>NR THEN ZAP:GOTO800
+845 IF RO<4 THEN 900
+850 IF RO=4 AND(CU=2ORCU=5ORCU=6)THENGOSUB3900:GOTO800
+860 IF RO=5 AND(CU<>2ANDCU<>5) THEN GOSUB 3900:GOTO800
+870 IF RO=6 AND(CU<>3ANDCU<>6) THEN GOSUB 3900:GOTO800
+900 RP(1)=RO:PRINT RO$(RP(1)):GOSUB 8000
+910 GOSUB 4000:IF OK$="N" THEN ZAP:TEXT:GOTO800
+
+2000 END' +++++++++++++++  Sous programmes et DATA ++++++++++++++++++++
+
+3900 PRINT:PRINT:
+3901 IF BOOL=1THEN3940
+3920 S$= "  HEY !! "+CULT$(CP(1))+" cannot do that !  "
+3930 BOOL=1:GOTO 3950
+3940 S$= "         ARE YOU KIDDING ME ?     ":BOOL=0
+3950 GOSUB7000:ZAP:WAIT200:PING
+3960 RETURN
+
+4000 REM OK ?
+4010 PING:WAIT 100
+4020 PRINT SPC(10);CHR$(148)" < OK ? Y/N > "CHR$(144)
+4030 OK$=KEY$:IF OK$="" THEN 4030
+4040 IF OK$<>"N" AND OK$<>"Y" THEN 4030
+4050 RETURN
+
+5900  REM lowercase forename
+5910 S$=NOM$(P):NOM$(P)=LEFT$(S$,1)
+5920 FORI=2TOLEN(S$)
+5930 MI=ASC(MID$(S$,I,1))
+5940 IF MI>64 AND MI<91 THEN MI=MI+32
+5950 L$=CHR$(MI)
+5960 NOM$(P)=NOM$(P)+L$
+5970 NEXT 
+5980 RETURN
+
+6000 REM blue
+6010 PRINTCHR$(148);S$;CHR$(144)
+6020 RETURN
+
+7000 REM red
+7010 PRINTCHR$(145);S$;CHR$(144)
+7030 RETURN
+
+8000 'HIRES: REM FICHES DES Roles
+8010 'CLOAD"FICH-GLA.HRS"
+8200 RETURN
+
+15000 REM DISPLAY
+15005 CLS:
+15008 T=INT((37-LEN(SS$))/2)
+15010 PRINT @ T,1;" ";CHR$(145);" ";SS$;"  ";CHR$(144)
+15015 PRINT
+15020 PRINT"        ***********************"
+15030 PRINT"        *                     *"
+15035 IFTEST=0THENXX=7ELSEXX=6
+15040 FOR I=1TOXX:L=I+4
+15045 IF TEST=0 THEN S$=CULT$(I)ELSE S$=ROLE$(I)
+15050 PRINT @10,L;"*":PRINT @31,L;"*"
+15080 PRINT @14,L;I;S$
+15130 NEXT I
+15140 PRINT"        *                     *"
+15150 PRINT"        ***********************"
+15200 RETURN
+
+30000 REM ***************  TEXTE INTRO  **************
+30001 DATA "   Ave !    Great Hero of Roma      "
+30002 DATA "The Empire  needs you  one more time"
+30003 DATA "Our north Frontier, Antoninus's Wall"
+30004 DATA "is  under  pressure  by  the  pictus" 
+30005 DATA "barbarians herds...."
+30006 DATA "I want to increase the safety of the"
+30007 DATA "civilized Britannia's people,   by a"
+30008 DATA "strong offensive with the legions of"
+30009 DATA "Nemausus.  "
+30010 DATA "My father,  Antoninus Pius,  born in"
+30011 DATA "this town, always said  they are the"
+30012 DATA "most scary legions of all the Empire"
+30013 DATA "You must explore the Caledonia land,"
+30014 DATA "North of  Antoninus & Hadrian Walls,"
+30015 DATA "Evaluate  enemy forces,  seek & find"
+30016 DATA "their Chief .....and KILL HIM  !!!!!"
+30017 DATA " . . . . "
+30018 DATA "    * For the Glory of Roma *  "
+30019 DATA "    ! Pray all the Gods now !  "
+
+40000 DATA Legionary, Gladiator, Scout, Druid, Sem-Priest, Vestal
+40010 DATA Celtic, Egyptian, Gallic, Goth, Persian, Roman, Viking
+40020 DATA Melee Skill, Range Skill, Strength' Ml Rg St
+40030 DATA Agility, Intelligence' Ag IQ
+40040 DATA Mental Strength, Health Points' MS HP 
+
+40050 REM   Ml Rg St  Ag IQ MS HP  les bonus de roles 
+40060 DATA   6, 6, 6, 6, 5, 5, 3: REM Legionary
+40070 DATA   8, 4, 8, 9, 3, 6, 5: REM Gladiator
+40080 DATA   4, 8, 4,12, 8, 6, 3: REM Scout (Eclaireur)
+40090 DATA   0, 6, 4, 6,10,10, 2: REM Druid
+40100 DATA  -2,-2, 2, 8,12,10, 1: REM Sem-Priest
+40110 DATA  -4,-4, 0,10,15,12, 0: REM Vestal
+
+41000 REM MODIFS DUES AUX CULTURES
+41010 REM A DEFINIR
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
