@@ -329,14 +329,14 @@ public class BasicLoader {
                             if (ligne.startsWith("#define"))
                             {
                                 //"#define DEFINE_NAME REPLACEMENT_VALUE"
-                                ligne = ligne.substring(7).trim();
+                                ligne = ligne.substring(7).strip();
                                 String [] tab = ligne.split("[ \t]");
                                 if (tab.length < 2) {
                                     System.err.println("Define missing value");
                                     return;
                                 }
-                                String defineName  = tab[0].trim();
-                                String defineValue = tab[1].trim();
+                                String defineName  = tab[0].strip();
+                                String defineValue = tab[1].strip();
 
                                 String potentialUsableName = getPotentialSymbolName(defineName);
                                 if (!potentialUsableName.equals(defineName))
