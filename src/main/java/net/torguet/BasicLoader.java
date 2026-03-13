@@ -78,7 +78,7 @@ public class BasicLoader {
             }
             lineNumberHigh = lineNumberHigh << 8;
             lineNumber = lineNumber+lineNumberHigh;
-            fileOutputStream.print(" "+lineNumber+" ");
+            fileOutputStream.print(""+lineNumber+" ");
             i+=2;
             int car;
             while (buffer[i]!=0)
@@ -241,30 +241,16 @@ public class BasicLoader {
         return false;
     }
 
-    class LineData {
-        LineData() {
-            trimmedLine = "";
-            sourceNumber = -1;
-            basicNumber = -1;
-        }
-
-        String trimmedLine;
-        int sourceNumber;
-        int basicNumber;
-    }
-
-
     private void bas2Tap(String sourceFile, String destFile,
                          boolean autoRun, boolean useColor, boolean optimize) throws IOException {
-        StringBuffer buf;
         int end, adr;
 
         boolean useExtendedBasic = false;
 
-
+        DataOutputStream dataOutputStream = new DataOutputStream(new FileOutputStream(destFile));
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         // Mike: Need to improve the parsing of this with a global function to split
         // a text file in separate lines.
-        BufferedReader fileReader = new BufferedReader(new FileReader(sourceFile));
         List<String> textData = Files.readAllLines(Path.of(sourceFile), Charset.defaultCharset());
         if (textData == null)
         {
@@ -281,7 +267,7 @@ public class BasicLoader {
 
             fileName = sourceFile;
             String labelName = "";
-            LineData lineData;
+            LineData lineData = new LineData();
             lineData.sourceNumber = 0;
 
             for(String line : textData)
@@ -365,48 +351,44 @@ public class BasicLoader {
 
                                 if ((startQuote != 0) || (endQuote != ligne.length()))
                                 {
-                                    System.err.printf("#import directive in file %s line number line %d should be followed by a quoted path", m_CurrentFileName.c_str(), lineData.sourceNumber);
+                                    System.err.printf("#import directive in file %s line number line %d should be followed by a quoted path", fileName, lineData.sourceNumber);
                                     return;
                                 }
                                 importPathName = importPathName.substring(startQuote + 1, endQuote - 1);  // Keep the part between the quotes
 
-                                void* ptr_buffer_void;
-                                size_t size_buffer_src;
+                                List<String> symbols = Files.readAllLines(Path.of(importPathName));
 
                                 //
                                 // Load the symbol file (XA format)
                                 //
-                                if (!LoadFile(importPathName.c_str(), ptr_buffer_void, size_buffer_src))
+                                if (symbols == null)
                                 {
-                                    ShowError("Unable to load symbol file '%s'", importPathName.c_str());
+                                    System.err.printf("Unable to load symbol file '%s'", importPathName);
+                                    return;
                                 }
 
-                                unsigned char* ptr_buffer = (unsigned char*)ptr_buffer_void;
-
-                                char* ptr_tok = strtok((char*)ptr_buffer, " \r\n");
-                                while (ptr_tok)
+                                for(String symbol : symbols)
                                 {
-                                    int symbolAddress = strtol(ptr_tok, 0, 16);    // Address
-                                    ptr_tok = strtok(0, " \r\n");          // Name
-                                    if (*ptr_tok == '_')
+                                    String[] tab = symbol.split(" ");
+                                    int symbolAddress = Integer.parseInt(tab[0], 16);   // Address
+                                    String name = tab[1];          // Name
+                                    if (name.startsWith("_"))
                                     {
                                         // We are only interested in symbols with external linkage
-                                        ++ptr_tok;
-                                        std::string defineName(ptr_tok);
+                                        name = name.substring(1);
 
-                  const char* ptrDefineName = ptr_tok;
-                                        std::string potentialUsableName = GetPotentialSymbolName(ptrDefineName);
-                                        if (potentialUsableName != defineName)
+                                        String potentialUsableName = getPotentialSymbolName(name);
+                                        if (potentialUsableName.equals(name))
                                         {
-                                            int keyw = search_keyword(ptrDefineName);
+                                            int keyw = searchKeyword(name);
                                             if (keyw >= 0)
                                             {
-                                                ShowError("Define named '%s' in file %s contains the name of a BASIC instruction '%s'", defineName.c_str(), importPathName.c_str(), keywords[keyw]);
+                                                System.err.printf("Define named '%s' in file %s contains the name of a BASIC instruction '%s'", name, importPathName, BasicProgram.getKeywords()[keyw]);
+                                                return;
                                             }
                                         }
-                                        m_Defines[defineName] = std::to_string(symbolAddress);
+                                        basicProgram.addDefine(name, ""+symbolAddress);
                                     }
-                                    ptr_tok = strtok(0, " \r\n");
                                 }
 
               /*
@@ -428,19 +410,25 @@ public class BasicLoader {
                             }
                             else
                             {
-                                ShowError("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, m_CurrentFileName.c_str(), lineData.sourceNumber);
+                                System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
+                                return;
                             }
                         }
                         else
                         {
                             // Standard line
-                            int number = get_value(ligne, -1);
+                            String[]tab = ligne.split("^[0-9]");
+                            int number = -1;
+                            try {
+                                number = Integer.parseInt(ligne);
+                            } catch (NumberFormatException nfe) {
+                            }
                             if (number<0)
                             {
-                                char car = ligne[0];
+                                char car = ligne.charAt(0);
                                 if (car != 0)
                                 {
-                                    char car2 = ligne[1];
+                                    char car2 = ligne.charAt(1);
                                     if ((car == '\'') || (car == ';') || ((car == '/') && (car2 == '/')))
                                     {
                                         // We accept the usual C, Assembler and BASIC comments are actual comments that do not count as normal lines
@@ -461,33 +449,34 @@ public class BasicLoader {
                                     else
                                     {
                                         // Possibly a label
-                                        std::string line(ligne);
-                                        labelName = StringTrim(StringSplit(line, ": \t"));
-                                        if (labelName.empty())
+                                        labelName = ligne.strip();
+                                        if (labelName.isEmpty())
                                         {
                                             // Not a label, so maybe a line of basic without line number
-                                            ShowError("Missing label information in file %s line %d", m_CurrentFileName.c_str(), lineData.sourceNumber);
+                                            System.err.printf("Missing label information in file %s line %d", fileName, lineData.sourceNumber);
                                             break;
                                         }
                                         else
                                         {
                                             // Definitely a label, or something unfortunately detected as a label because of the ":" at the end :p
-                                            if (m_Labels.find(labelName) != m_Labels.end())
+                                            var labelInfo = basicProgram.findLabel(labelName);
+                                            if (labelInfo != null)
                                             {
-                                                ShowError("Label '%s' found in file %s line %d is already defined", labelName.c_str(), m_CurrentFileName.c_str(), lineData.sourceNumber);
+                                                System.err.printf("Label '%s' found in file %s line %d is already defined", labelName, fileName, lineData.sourceNumber);
                                                 break;
                                             }
 
-                                            bool hasSetIncrement = false;
-                                            bool hasSetNumber = false;
+                                            boolean hasSetIncrement = false;
+                                            boolean hasSetNumber = false;
 
-                                            while (!line.empty())
+                                            while (!line.isEmpty())
                                             {
-                                                std::string lineOrIncrement = StringTrim(StringSplit(line, ": \t"));
-                                                if (!lineOrIncrement.empty())
+                                                String [] tabInc = line.split("[: \t]");
+                                                String lineOrIncrement = tabInc[0].trim();
+                                                if (!lineOrIncrement.isEmpty())
                                                 {
-                                                    char car  = lineOrIncrement[0];
-                                                    char car2 = (lineOrIncrement.size()>=2)?lineOrIncrement[1]:0;
+                                                    car  = lineOrIncrement.charAt(0);
+                                                    char car2 = (lineOrIncrement.length()>=2)?lineOrIncrement.charAt(1):0;
                                                     if ( (car == '\'') || (car == ';') || ((car == '/') && (car2 == '/')) )
                                                     {
                                                         // Comment
@@ -499,28 +488,30 @@ public class BasicLoader {
                                                         // Increment
                                                         if (hasSetIncrement)
                                                         {
-                                                            ShowError("Line increment value for label '%s' found in file %s line %d was already set to %d", labelName.c_str(), m_CurrentFileName.c_str(), lineData.sourceNumber, incrementStep);
+                                                            System.err.printf("Line increment value for label '%s' found in file %s line %d was already set to %d", labelName, fileName, lineData.sourceNumber, incrementStep);
                                                         }
-                                                        lineOrIncrement = lineOrIncrement.substr(1);
-                                                        incrementStep = std::stoi(lineOrIncrement);
-                                                        hasSetIncrement = true;
+                                                        lineOrIncrement = lineOrIncrement.substring(1);
+                                                        try {
+                                                            incrementStep = Integer.parseInt(lineOrIncrement);
+                                                            hasSetIncrement = true;
+                                                        } catch (NumberFormatException nfe) {
+                                                            System.err.printf("Line increment value %s is not an integer", lineOrIncrement);
+                                                        }
                                                     }
                                                     else
                                                     {
                                                         // Line number
                                                         if (hasSetNumber)
                                                         {
-                                                            ShowError("Line number value for label '%s' found in file %s line %d was already set to %d", labelName.c_str(), m_CurrentFileName.c_str(), lineData.sourceNumber, lastLineNumber);
+                                                            System.err.printf("Line number value for label '%s' found in file %s line %d was already set to %d", labelName, fileName, lineData.sourceNumber, lastLineNumber);
                                                         }
-                                                        char* endPtr = nullptr;
-                          const char* startPtr = lineOrIncrement.c_str();
-                                                        lastLineNumber = std::strtol(startPtr,&endPtr,10);
-                                                        if (startPtr == endPtr)
-                                                        {
-                                                            ShowError("Invalid line number value '%s' for label '%s' found in file %s line %d", startPtr, labelName.c_str(), m_CurrentFileName.c_str(), lineData.sourceNumber);
+                                                        try {
+                                                            lastLineNumber = Integer.parseInt(lineOrIncrement);
+                                                        } catch (NumberFormatException nfe) {
+                                                            System.err.printf("Invalid line number value '%s' for label '%s' found in file %s line %d", lineOrIncrement, labelName, fileName, lineData.sourceNumber);
                                                         }
 
-                                                        m_Labels[labelName] = lastLineNumber;
+                                                        basicProgram.setLabel(labelName, lastLineNumber);
                                                         hasSetNumber = true;
                                                     }
                                                 }
@@ -528,7 +519,7 @@ public class BasicLoader {
 
                                             if (!hasSetNumber)
                                             {
-                                                m_Labels[labelName] = lastLineNumber + incrementStep;
+                                                basicProgram.setLabel(labelName, lastLineNumber + incrementStep);
                                             }
                                             shouldSkip = true;
                                         }
@@ -536,39 +527,38 @@ public class BasicLoader {
                                 }
                                 else
                                 {
-                                    ShowError("Missing line number in file %s line %d", m_CurrentFileName.c_str(), lineData.sourceNumber);
+                                    System.err.printf("Missing line number in file %s line %d", fileName, lineData.sourceNumber);
                                     break;
                                 }
                             }
                             else
                             {
                                 // We have a valid line number, if we have a pending label, record it
-                                if (!labelName.empty())
+                                if (!labelName.isEmpty())
                                 {
-                                    m_Labels[labelName] = number;
-                                    labelName.clear();
+                                    basicProgram.setLabel(labelName,number);
+                                    labelName = "";
                                 }
-                                lineData.trimmedLine = StringTrim(ligne);
+                                lineData.trimmedLine = ligne.strip();
                             }
                             if (number >= 0)
                             {
                                 lineData.basicNumber = number;
                                 lastLineNumber = number;
-                                m_ValidLineNumbers.insert(number);
+                                basicProgram.addValidLineNumber(number);
                             }
                         }
                         if (!shouldSkip)
                         {
                             // No need to add labels as actual lines to parse
-                            m_ActualLines.push_back(lineData);
+                            basicProgram.addLine(lineData);
                         }
                     }
                 }
             }
         }
 
-        unsigned char* bufPtr = buf;
-        m_CurrentFileName = sourceFile;
+        fileName = sourceFile;
 
         {
             //
@@ -576,76 +566,75 @@ public class BasicLoader {
             //
             int previousLineNumber = -1;
 
-            std::vector<LineData>::const_iterator lineIt = m_ActualLines.begin();
-            while (lineIt != m_ActualLines.end())
+            for(LineData lineData : basicProgram.getSortedLines())
             {
-      const LineData& lineData(*lineIt);
-                std::string currentLine = lineData.trimmedLine;
-                m_CurrentLineNumber = lineData.sourceNumber;
+                String currentLine = lineData.trimmedLine;
+                currentLineNumber = lineData.sourceNumber;
 
                 if (lineData.basicNumber < previousLineNumber)
                 {
-                    ShowError("BASIC line number %d in file %s line number line %d is smaller than the previous line %d", lineData.basicNumber, m_CurrentFileName.c_str(), m_CurrentLineNumber, previousLineNumber);
+                    System.err.printf("BASIC line number %d in file %s line number line %d is smaller than the previous line %d", lineData.basicNumber, fileName, currentLineNumber, previousLineNumber);
                 }
                 previousLineNumber = lineData.basicNumber;
 
-                if (!currentLine.empty())
+                if (!currentLine.isEmpty())
                 {
-        const char* ligne = currentLine.c_str();
-                    if (ligne[0] == '#')
+                    String ligne = currentLine;
+                    if (ligne.charAt(0) == '#')
                     {
                         // Preprocessor directive
-                        if (memicmp(ligne, "#file", 5) == 0)
+                        if (ligne.startsWith("#file"))
                         {
                             //"#file font.BAS""
                             // Very approximative "get the name of the file and reset the line counter" code.
                             // Will clean up that when I will have some more time.
-                            ligne += 5;
-                            m_CurrentFileName = ligne;
-                            m_CurrentLineNumber = 0;
+                            ligne = ligne.substring(5);
+                            fileName = ligne;
+                            currentLineNumber = 0;
                         }
                         else
                         {
-                            ShowError("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, m_CurrentFileName.c_str(), lineData.sourceNumber);
+                            System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
                         }
                     }
                     else
                     {
                         // Standard line
-                        unsigned char* lineStart = bufPtr;
-
-          *bufPtr++ = 0;
-          *bufPtr++ = 0;
-
-          *bufPtr++ = lineData.basicNumber & 0xFF;
-          *bufPtr++ = lineData.basicNumber >> 8;
-
-                        bool color          = useColor;
-                        bool isComment      = false;
-                        bool isQuotedString = false;
-                        bool isData         = false;
 
 
-                        while (*ligne == ' ') ligne++;
+                        byteArrayOutputStream.write(0);
+                        byteArrayOutputStream.write(0);
+
+                        byteArrayOutputStream.write(lineData.basicNumber & 0xFF);
+
+                        byteArrayOutputStream.write(lineData.basicNumber >> 8);
+
+                        boolean color          = useColor;
+                        boolean isComment      = false;
+                        boolean isQuotedString = false;
+                        boolean isData         = false;
+
+                        int pos = 0;
+                        while (ligne.charAt(pos) == ' ') pos++;
 
 
-                        while (*ligne)
+                        while (pos < ligne.length())
                         {
-                            unsigned char car = *ligne;
-                            unsigned char car2 = *(ligne + 1);
+                            char car = ligne.charAt(pos);
+                            char car2 = ligne.charAt(pos + 1);
 
                             if (isComment)
                             {
-                                char value = *ligne++;
+                                char value = ligne.charAt(pos++);
                                 if (!optimize)
                                 {
                                     if (color)
                                     {
                                         color = false;
-                  *bufPtr++ = 27;	// ESCAPE
-                  *bufPtr++ = 'B';	// GREEN labels
+                                        byteArrayOutputStream.write(27);	// ESCAPE
+                                        byteArrayOutputStream.write('B');	// GREEN labels
                                     }
-                *bufPtr++ = value;
+                                    byteArrayOutputStream.write(value);
                                 }
                             }
                             else
@@ -660,25 +649,25 @@ public class BasicLoader {
                                     // Special control code
                                     if ( (car2>=96) && (car2 <= 'z') )  // 96=arobase ('a'-1)
                                     {
-                  *bufPtr++ = car2-96;
-                                        ligne+=2;
+                                        byteArrayOutputStream.write(car2-96);
+                                        pos+=2;
                                     }
                                     else
                                     if ((car2 >= '@') && (car2 <= 'Z'))
                                     {
-                  *bufPtr++ = 27;      // ESCAPE
-                  *bufPtr++ = car2;    // Actual control code
+                                        byteArrayOutputStream.write(27);      // ESCAPE
+                                        byteArrayOutputStream.write(car2);    // Actual control code
                                         ligne+=2;
                                     }
                                     else
                                     {
-                                        ShowError("The sequence '~%c' in file %s line number line %d is not a valid escape sequence ", car2, m_CurrentFileName.c_str(), m_CurrentLineNumber);
+                                        System.err.printf("The sequence '~%c' in file %s line number line %d is not a valid escape sequence ", car2, fileName, currentLineNumber);
                                     }
 
                                 }
                                 else
                                 {
-                *bufPtr++ = *ligne++;
+                                    byteArrayOutputStream.write(ligne.charAt(pos++));
                                 }
                             }
                             else

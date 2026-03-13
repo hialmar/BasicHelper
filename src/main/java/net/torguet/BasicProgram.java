@@ -4,13 +4,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class BasicProgram {
-    private final ArrayList<String> sortedLines;
-    private final HashMap<String, String> lines;
+    private final ArrayList<LineData> sortedLines;
+    private final HashMap<String, LineData> lines;
     private int firstLine;
     private int lastLine;
 
     public void addDefine(String defineName, String defineValue) {
         defines.put(defineName, defineValue);
+    }
+
+    public void addValidLineNumber(int number) {
+        LineData lineData = new LineData();
+        lineData.sourceNumber = number;
+        lines.put(""+number, lineData);
     }
 
     public class LabelInfos {
@@ -65,7 +71,7 @@ public class BasicProgram {
         return lastLine;
     }
 
-    public ArrayList<String> getSortedLines() {
+    public ArrayList<LineData> getSortedLines() {
         System.out.println(lines);
         System.out.println(labels);
         return sortedLines;
@@ -75,9 +81,9 @@ public class BasicProgram {
         return lines.containsKey(lineNumber);
     }
 
-    public void addLine(String line) {
+    public void addLine(LineData line) {
         sortedLines.add(line);
-        int lineNumber = computeLineNumber(line);
+        int lineNumber = line.sourceNumber;
         if (firstLine == -1 || lineNumber < firstLine) firstLine = lineNumber;
         if (lastLine == -1 || lineNumber > lastLine) lastLine = lineNumber;
         lines.put("" + lineNumber, line);
@@ -109,7 +115,7 @@ public class BasicProgram {
 
     private void replaceLineNumber(int line, int oldLine, int newLine) {
         String rewrittenLine = "";
-        String lineToModify = lines.get(line);
+        LineData lineToModify = lines.get(line);
 
     }
 
@@ -124,8 +130,8 @@ public class BasicProgram {
         return Integer.parseInt(lineNumber);
     }
 
-    private void computeLabels(String line, int lineNumber) {
-        String[] tab = line.split("[ :']");
+    private void computeLabels(LineData line, int lineNumber) {
+        String[] tab = line.trimmedLine.split("[ :']");
         for (int i = 0; i < tab.length; i++) {
             String s = tab[i];
             System.out.println(s);
@@ -146,7 +152,12 @@ public class BasicProgram {
         }
     }
 
-    private void addLabel(String label, int lineNumber) {
+    public void setLabel(String label, int lineNumber) {
+        LabelInfos infos = labels.computeIfAbsent(label, k -> new LabelInfos());
+        infos.lineNumber = lineNumber;
+    }
+
+    public void addLabel(String label, int lineNumber) {
         LabelInfos infos = labels.computeIfAbsent(label, k -> new LabelInfos());
         if (infos.referencedLines == null)
             infos.referencedLines = new ArrayList<>();
