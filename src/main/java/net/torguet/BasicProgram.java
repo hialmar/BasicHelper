@@ -22,6 +22,14 @@ public class BasicProgram {
     public class LabelInfos {
         int lineNumber;
         ArrayList<String> referencedLines;
+
+        @Override
+        public String toString() {
+            return "LabelInfos{" +
+                    "lineNumber=" + lineNumber +
+                    ", referencedLines=" + referencedLines +
+                    '}';
+        }
     }
 
     private final HashMap<String, LabelInfos> labels;
@@ -83,6 +91,7 @@ public class BasicProgram {
 
     public void addLine(LineData line) {
         sortedLines.add(line);
+        line.sourceNumber = computeLineNumber(line.trimmedLine);
         int lineNumber = line.sourceNumber;
         if (firstLine == -1 || lineNumber < firstLine) firstLine = lineNumber;
         if (lastLine == -1 || lineNumber > lastLine) lastLine = lineNumber;
@@ -120,6 +129,8 @@ public class BasicProgram {
     }
 
     private int computeLineNumber(String line) {
+        if (line == null)
+            return -1;
         // remove leading spaces
         int start = 0;
         while (line.charAt(start) == ' ')
@@ -131,6 +142,8 @@ public class BasicProgram {
     }
 
     private void computeLabels(LineData line, int lineNumber) {
+        if (line.trimmedLine == null)
+            return;
         String[] tab = line.trimmedLine.split("[ :']");
         for (int i = 0; i < tab.length; i++) {
             String s = tab[i];
@@ -146,7 +159,7 @@ public class BasicProgram {
                         addLabel("" + nextLine, lineNumber);
                         i++;
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        System.out.println("Not a number, skipping.");
                     }
             }
         }

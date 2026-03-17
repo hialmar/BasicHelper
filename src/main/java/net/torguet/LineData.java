@@ -10,4 +10,9 @@ public class LineData {
     public String trimmedLine;
     public int sourceNumber;
     public int basicNumber;
+
+    @Override
+    public String toString() {
+        return trimmedLine;
+    }
 }
