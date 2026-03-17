@@ -1,13 +1,16 @@
 package net.torguet;
 
+import javax.sound.sampled.Line;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public class BasicProgram {
+    private String name;
     private final ArrayList<LineData> sortedLines;
     private final HashMap<String, LineData> lines;
     private int firstLine;
     private int lastLine;
+    private int nextLabelId;
 
     public void addDefine(String defineName, String defineValue) {
         defines.put(defineName, defineValue);
@@ -19,9 +22,67 @@ public class BasicProgram {
         lines.put(""+number, lineData);
     }
 
+    public void replaceLinesByLabels() {
+        labels.forEach((name, infos) -> {
+            replaceByLabel(name, infos);
+        });
+
+        removeLineNumbers();
+    }
+
+    private void removeLineNumbers() {
+        for(LineData line : sortedLines) {
+            if(isValidLineNumber(line.trimmedLine.charAt(0))) {
+                int i =0;
+                while(isValidLineNumber(line.trimmedLine.charAt(i))) {
+                    i++;
+                }
+                line.trimmedLine = line.trimmedLine.substring(i);
+            }
+        }
+    }
+
+    private boolean isValidLineNumber(char car)
+    {
+        if ((car >= '0') && (car <= '9')) return true;
+        return false;
+    }
+
+    private void replaceByLabel(String name, LabelInfos infos) {
+        // check if it's a line number
+        if (isValidLineNumber(name.charAt(0))) {
+            String label = this.name + "_" + nextLabelId;
+            nextLabelId++;
+            try {
+                int number = Integer.parseInt(name);
+                for(int refLine : infos.referencedLines) {
+                    LineData line = lines.get(""+refLine);
+                    replaceLineNumber(line, name, label);
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Not really a line number");
+            }
+        }
+    }
+
+    private void replaceLineNumber(LineData line, String name, String label) {
+        String [] tab = line.trimmedLine.split("[ \t']");
+        String newLine = "";
+        // remove the line number
+        for(int i=1; i< tab.length; i++) {
+            String tok = tab[i];
+            if (tok.equals(name)) {
+                newLine += " "+label;
+            } else {
+                newLine += " "+tok;
+            }
+        }
+        line.trimmedLine = newLine;
+    }
+
     public class LabelInfos {
         int lineNumber;
-        ArrayList<String> referencedLines;
+        ArrayList<Integer> referencedLines;
 
         @Override
         public String toString() {
@@ -62,13 +123,20 @@ public class BasicProgram {
                     // 247- : Error messages
             };
 
-    public BasicProgram() {
+    public BasicProgram(String name) {
+        this.name = name;
+        // remove extension
+        int ext = this.name.indexOf('.');
+        if (ext != -1) {
+            this.name = this.name.substring(0,ext);
+        }
         sortedLines = new ArrayList<>();
         lines = new HashMap<>();
         labels = new HashMap<>();
         defines = new HashMap<>();
         firstLine = -1;
         lastLine = -1;
+        nextLabelId = 0;
     }
 
     public int getFirstLine() {
@@ -116,8 +184,8 @@ public class BasicProgram {
     private void recomputeLabel(int oldLine, int newLine) {
         LabelInfos infos = labels.get("" + oldLine);
         if (infos != null && infos.referencedLines != null) {
-            for (String line : infos.referencedLines) {
-                replaceLineNumber(Integer.parseInt(line), oldLine, newLine);
+            for (int line : infos.referencedLines) {
+                replaceLineNumber(line, oldLine, newLine);
             }
         }
     }
@@ -174,7 +242,7 @@ public class BasicProgram {
         LabelInfos infos = labels.computeIfAbsent(label, k -> new LabelInfos());
         if (infos.referencedLines == null)
             infos.referencedLines = new ArrayList<>();
-        infos.referencedLines.add("" + lineNumber);
+        infos.referencedLines.add(lineNumber);
     }
 
     public static String[] getKeywords() {

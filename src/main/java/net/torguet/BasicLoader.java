@@ -19,7 +19,8 @@ public class BasicLoader {
         currentLineNumber = 0;
         this.fileName = fileName;
         bufferedReader = new BufferedReader(new FileReader(fileName));
-        basicProgram = new BasicProgram();
+        Path p = Path.of(fileName);
+        basicProgram = new BasicProgram(p.getFileName().toString());
     }
 
     public void readProgram() throws Exception {
@@ -117,6 +118,7 @@ public class BasicLoader {
         BasicLoader basicLoader = new BasicLoader("src/main/resources/intro2.bas");
         basicLoader.readProgram();
         BasicProgram basicProgram = basicLoader.getBasicProgram();
+        basicProgram.replaceLinesByLabels();
         basicProgram.getSortedLines().forEach(System.out::println);
     }
 }
