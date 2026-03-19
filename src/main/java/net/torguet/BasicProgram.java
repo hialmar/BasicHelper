@@ -11,6 +11,23 @@ public class BasicProgram {
     private int firstLine;
     private int lastLine;
     private int nextLabelId;
+    private int nextDefineId;
+
+    public BasicProgram(String name) {
+        this.name = name;
+        // remove extension
+        int ext = this.name.indexOf('.');
+        if (ext != -1) {
+            this.name = this.name.substring(0,ext);
+        }
+        sortedLines = new ArrayList<>();
+        lines = new HashMap<>();
+        labels = new HashMap<>();
+        defines = new HashMap<>();
+        firstLine = -1;
+        lastLine = -1;
+        nextLabelId = 0;
+    }
 
     public void addDefine(String defineName, String defineValue) {
         defines.put(defineName, defineValue);
@@ -123,21 +140,7 @@ public class BasicProgram {
                     // 247- : Error messages
             };
 
-    public BasicProgram(String name) {
-        this.name = name;
-        // remove extension
-        int ext = this.name.indexOf('.');
-        if (ext != -1) {
-            this.name = this.name.substring(0,ext);
-        }
-        sortedLines = new ArrayList<>();
-        lines = new HashMap<>();
-        labels = new HashMap<>();
-        defines = new HashMap<>();
-        firstLine = -1;
-        lastLine = -1;
-        nextLabelId = 0;
-    }
+
 
     public int getFirstLine() {
         return firstLine;
@@ -159,7 +162,7 @@ public class BasicProgram {
 
     public void addLine(LineData line) {
         sortedLines.add(line);
-        line.sourceNumber = computeLineNumber(line.trimmedLine);
+        line.sourceNumber = computeLineNumber(line.trimmedLine, line);
         int lineNumber = line.sourceNumber;
         if (firstLine == -1 || lineNumber < firstLine) firstLine = lineNumber;
         if (lastLine == -1 || lineNumber > lastLine) lastLine = lineNumber;
@@ -196,41 +199,68 @@ public class BasicProgram {
 
     }
 
-    private int computeLineNumber(String line) {
+    private int computeLineNumber(String line, LineData lineData) {
         if (line == null)
             return -1;
         // remove leading spaces
         int start = 0;
-        while (line.charAt(start) == ' ')
+        while (!isValidLineNumber(line.charAt(start)))
             start++;
-        int firstWhiteSpace = line.indexOf(' ', start);
-        if (firstWhiteSpace == -1) return -1;
-        String lineNumber = line.substring(start, firstWhiteSpace);
-        return Integer.parseInt(lineNumber);
+        int firstNonNumber = start;
+        while(isValidLineNumber(line.charAt(firstNonNumber))
+            firstNonNumber++;
+        if (firstNonNumber == -1) return -1;
+        String lineNumber = line.substring(start, firstNonNumber);
+        lineData.sourceNumber = Integer.parseInt(lineNumber);
+        lineData.trimmedLine = line.substring(firstNonNumber);
+        return lineData.sourceNumber;
     }
 
     private void computeLabels(LineData line, int lineNumber) {
-        if (line.trimmedLine == null)
+        if (line.trimmedLine == null || line.trimmedLine.length() == 0)
             return;
-        String[] tab = line.trimmedLine.split("[ :']");
-        for (int i = 0; i < tab.length; i++) {
-            String s = tab[i];
-            System.out.println(s);
-            switch (s.toUpperCase()) {
-                case "THEN":
-                case "ELSE":
-                case "GOTO":
-                case "GOSUB":
-                    try {
-                        String next = tab[i + 1];
-                        int nextLine = Integer.parseInt(next);
-                        addLabel("" + nextLine, lineNumber);
-                        i++;
-                    } catch (Exception e) {
-                        System.out.println("Not a number, skipping.");
+        // find number
+        int startOfNumber = 0;
+        int endOfNumber = 0;
+        int lineLength = line.trimmedLine.length();
+        while(startOfNumber<lineLength) {
+            // skip non number
+            while (startOfNumber < lineLength && !isValidLineNumber(line.trimmedLine.charAt(startOfNumber)))
+                startOfNumber++;
+            // parse the whole number
+            endOfNumber = startOfNumber;
+            int lineNumberOrNumber = line.trimmedLine.charAt(endOfNumber) - '0';
+            while(endOfNumber < lineLength && isValidLineNumber(line.trimmedLine.charAt(endOfNumber))) {
+                endOfNumber++;
+                lineNumberOrNumber = 10*lineNumberOrNumber + line.trimmedLine.charAt(endOfNumber) - '0';
+            }
+            // check what was before that number
+            if (startOfNumber-2>=0) {
+                String twoChars = line.trimmedLine.substring(startOfNumber - 2, startOfNumber);
+                if (twoChars.equalsIgnoreCase("TO")) {
+                    if (startOfNumber - 4 >= 0) {
+                        // could be TO or GOTO
+                        String fourChars = line.trimmedLine.substring(startOfNumber - 4, startOfNumber);
+                        if (fourChars.equalsIgnoreCase("GOTO")) {
+                            addLabel("" + lineNumberOrNumber, lineNumber);
+                        }
+                    } else {
+                        // it's a TO
+                        addDefine(name + "_D_" + this.nextDefineId, "" + lineNumberOrNumber);
+                        this.nextDefineId++;
                     }
+                } else if (twoChars.equalsIgnoreCase("UB")) {
+                    // could be GOSUB
+                    String fiveChars = line.trimmedLine.substring(startOfNumber - 5, startOfNumber);
+                    if (fiveChars.equalsIgnoreCase("GOSUB")) {
+                        addLabel("" + lineNumberOrNumber, lineNumber);
+                    }
+                } else if (twoChars.equalsIgnoreCase("EN")) {
+                    // could be THEN
+                }
             }
         }
+
     }
 
     public void setLabel(String label, int lineNumber) {
