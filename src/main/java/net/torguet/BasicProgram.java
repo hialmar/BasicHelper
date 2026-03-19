@@ -207,7 +207,7 @@ public class BasicProgram {
         while (!isValidLineNumber(line.charAt(start)))
             start++;
         int firstNonNumber = start;
-        while(isValidLineNumber(line.charAt(firstNonNumber))
+        while(isValidLineNumber(line.charAt(firstNonNumber)))
             firstNonNumber++;
         if (firstNonNumber == -1) return -1;
         String lineNumber = line.substring(start, firstNonNumber);
