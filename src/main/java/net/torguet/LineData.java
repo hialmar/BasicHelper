@@ -31,13 +31,13 @@ public class LineData {
 
     public char getNextChar() {
         if (pos+1 >= trimmedLine.length())
-            return (char)-1;
+            return 0;
         return trimmedLine.charAt(pos+1);
     }
 
     public char getCurrentChar() {
         if (pos >= trimmedLine.length())
-            return (char)-1;
+            return 0;
         return trimmedLine.charAt(pos);
     }
 
