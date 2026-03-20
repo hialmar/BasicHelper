@@ -652,6 +652,7 @@ public class Bas2Tap {
         }
 
         fileName = sourceFile;
+        int lineBeginning = 0;
 
         {
             System.out.println("Second pass");
@@ -698,6 +699,7 @@ public class Bas2Tap {
                     else
                     {
                         // Standard line
+                        lineBeginning = buffer.position();
                         buffer.put((byte)0);
                         buffer.put((byte)0);
 
@@ -931,8 +933,8 @@ public class Bas2Tap {
 
                         adr = 0x501 + buffer.position();
 
-                        buffer.put(0,(byte)(adr & 0xFF));
-                        buffer.put(1,(byte)(adr >> 8));
+                        buffer.put(lineBeginning,(byte)(adr & 0xFF));
+                        buffer.put(lineBeginning+1,(byte)(adr >> 8));
                     }
                 }
             }
@@ -984,7 +986,7 @@ public class Bas2Tap {
 
     public static void main(String[] args) throws IOException {
         Bas2Tap bas2Tap = new Bas2Tap();
-        bas2Tap.bas2Tap("src/main/resources/test.bas", "src/main/resources/test2.tap",true,false,false);
+        bas2Tap.bas2Tap("src/main/resources/intro.bas", "src/main/resources/intro2.tap",true,false,false);
     }
 
 }
