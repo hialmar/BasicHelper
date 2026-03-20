@@ -3,7 +3,6 @@ package net.torguet;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -19,7 +18,6 @@ public class Bas2Tap {
     private final HashMap<String, String> defines;
     private int firstLine;
     private int lastLine;
-    private BufferedReader bufferedReader;
     private int currentLineNumber;
     private String fileName;
 
@@ -44,7 +42,7 @@ public class Bas2Tap {
         lines.put(""+number, lineData);
     }
 
-    public class LabelInfos {
+    public static class LabelInfos {
         int lineNumber;
         ArrayList<String> referencedLines;
     }
@@ -90,7 +88,7 @@ public class Bas2Tap {
     }
 
     public boolean isValidLineNumber(int lineNumber) {
-        return lines.containsKey(lineNumber);
+        return lines.containsKey(""+lineNumber);
     }
 
     public void addLine(LineData line) {
@@ -111,10 +109,6 @@ public class Bas2Tap {
         if (infos.referencedLines == null)
             infos.referencedLines = new ArrayList<>();
         infos.referencedLines.add("" + lineNumber);
-    }
-
-    public String[] getKeywords() {
-        return keywords;
     }
 
     public int searchKeyword(LineData keyword) {
@@ -152,7 +146,6 @@ public class Bas2Tap {
         }
         int i=13;
         while (buffer[i++]>0) {
-
         }
         while (buffer[i]!=0 || buffer[i+1]!=0)
         {
@@ -167,7 +160,7 @@ public class Bas2Tap {
             }
             lineNumberHigh = lineNumberHigh << 8;
             lineNumber = lineNumber+lineNumberHigh;
-            fileOutputStream.print(""+lineNumber+" ");
+            fileOutputStream.print(lineNumber+" ");
             i+=2;
             int car;
             while (buffer[i]!=0)
@@ -234,29 +227,27 @@ public class Bas2Tap {
 
     private boolean isValidLineNumber(char car)
     {
-        if ((car >= '0') && (car <= '9')) return true;
-        return false;
+        return (car >= '0') && (car <= '9');
     }
 
     private boolean isValidLabelName(char car)
     {
-        if (((car >= 'a') && (car <= 'z')) ||
+        return ((car >= 'a') && (car <= 'z')) ||
                 ((car >= 'A') && (car <= 'Z')) ||
-                (car == '_'))  return true;
-        return false;
+                (car == '_');
     }
 
     private String getPotentialSymbolName(LineData ligne)
     {
-        String potentialLabelName = "";
+        StringBuilder potentialLabelName = new StringBuilder();
         char car = ligne.getCurrentChar();
         while ((isValidLabelName(car) || isValidLineNumber(car)) && (searchKeyword(ligne)<0))
         {
-            potentialLabelName += car;
+            potentialLabelName.append(car);
             ligne.skipChar();
             car = ligne.getCurrentChar();
         }
-        return potentialLabelName;
+        return potentialLabelName.toString();
     }
 
     boolean processPossibleLineNumberLabelOrDefine(ByteBuffer bufPtr, LineData ligne,
@@ -290,8 +281,6 @@ public class Bas2Tap {
 
             if (!potentialLabelName.isEmpty())
             {
-                String valueToWrite;
-
                 LabelInfos infos = findLabel(potentialLabelName);
                 if (infos != null)
                 {
@@ -310,8 +299,7 @@ public class Bas2Tap {
                     {
                         // Found a matching define \o/
                         // We replace the value by the actual value
-                        String defineValue = findIt;
-                        bufPtr.put(defineValue.getBytes());
+                        bufPtr.put(findIt.getBytes());
                     }
                     else
                     {
@@ -328,8 +316,6 @@ public class Bas2Tap {
 
     private void bas2Tap(String sourceFile, String destFile,
                          boolean autoRun, boolean useColor, boolean optimize) throws IOException {
-        int end, adr;
-
         boolean useExtendedBasic = false;
 
         DataOutputStream dataOutputStream = new DataOutputStream(new FileOutputStream(destFile));
@@ -337,12 +323,21 @@ public class Bas2Tap {
         // Mike: Need to improve the parsing of this with a global function to split
         // a text file in separate lines.
         List<String> textData = Files.readAllLines(Path.of(sourceFile), Charset.defaultCharset());
-        if (textData == null)
-        {
-            System.err.println("Unable to load source file");
-            return;
-        }
 
+        FirstPass result = doFirstPass(sourceFile, optimize, textData, useExtendedBasic);
+        if (result == null) return;
+
+        fileName = sourceFile;
+
+        doSecondPass(useColor, buffer, result);
+
+        writeToFile(autoRun, buffer, dataOutputStream);
+    }
+
+    private record FirstPass(boolean optimize, boolean useExtendedBasic) {
+    }
+
+    private FirstPass doFirstPass(String sourceFile, boolean optimize, List<String> textData, boolean useExtendedBasic) throws IOException {
         {
             //
             // First pass: Get the labels and line numbers
@@ -406,7 +401,7 @@ public class Bas2Tap {
                                 String [] tab = ligne.split("[ \t]");
                                 if (tab.length < 2) {
                                     System.err.println("Define missing value");
-                                    return;
+                                    return null;
                                 }
                                 String defineName  = tab[0].strip();
                                 String defineValue = tab[1].strip();
@@ -420,7 +415,7 @@ public class Bas2Tap {
                                     {
                                         System.err.printf("Define named '%s' in file %s line number line %d contains the name of a BASIC instruction '%s'",
                                                 defineName, fileName, lineData.sourceNumber, BasicProgram.getKeywords()[keyw]);
-                                        return;
+                                        return null;
                                     }
                                 }
 
@@ -434,13 +429,13 @@ public class Bas2Tap {
                                 // #import "path_to_the_symbols_file"
                                 String importPathName = ligne.substring(7).trim();
                                 // We may want to trim out things like comments, etc...
-                                int startQuote = ligne.indexOf('"', 0);
+                                int startQuote = ligne.indexOf('"');
                                 int endQuote = ligne.indexOf('"', startQuote);
 
                                 if ((startQuote != 0) || (endQuote != ligne.length()))
                                 {
                                     System.err.printf("#import directive in file %s line number line %d should be followed by a quoted path", fileName, lineData.sourceNumber);
-                                    return;
+                                    return null;
                                 }
                                 importPathName = importPathName.substring(startQuote + 1, endQuote - 1);  // Keep the part between the quotes
 
@@ -449,11 +444,6 @@ public class Bas2Tap {
                                 //
                                 // Load the symbol file (XA format)
                                 //
-                                if (symbols == null)
-                                {
-                                    System.err.printf("Unable to load symbol file '%s'", importPathName);
-                                    return;
-                                }
 
                                 for(String symbol : symbols)
                                 {
@@ -473,7 +463,7 @@ public class Bas2Tap {
                                             if (keyw >= 0)
                                             {
                                                 System.err.printf("Define named '%s' in file %s contains the name of a BASIC instruction '%s'", name, importPathName, BasicProgram.getKeywords()[keyw]);
-                                                return;
+                                                return null;
                                             }
                                         }
                                         addDefine(name, ""+symbolAddress);
@@ -500,7 +490,7 @@ public class Bas2Tap {
                             else
                             {
                                 System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
-                                return;
+                                return null;
                             }
                         }
                         else
@@ -562,10 +552,11 @@ public class Bas2Tap {
                                             boolean hasSetIncrement = false;
                                             boolean hasSetNumber = false;
 
-                                            while (!line.isEmpty())
+                                            String [] tabInc = line.split("[: \t]");
+
+                                            for (String itemInc : tabInc)
                                             {
-                                                String [] tabInc = line.split("[: \t]");
-                                                String lineOrIncrement = tabInc[0].trim();
+                                                String lineOrIncrement = itemInc.trim();
                                                 if (!lineOrIncrement.isEmpty())
                                                 {
                                                     car  = lineOrIncrement.charAt(0);
@@ -650,299 +641,301 @@ public class Bas2Tap {
                 }
             }
         }
+        return new FirstPass(optimize, useExtendedBasic);
+    }
 
-        fileName = sourceFile;
-        int lineBeginning = 0;
+    private void doSecondPass(boolean useColor, ByteBuffer buffer, FirstPass result) {
+        int adr;
+        int lineBeginning;
+        System.out.println("Second pass");
+        //
+        // Second pass: Solve the labels
+        //
+        int previousLineNumber = -1;
 
+        for(LineData lineData : getSortedLines())
         {
-            System.out.println("Second pass");
-            //
-            // Second pass: Solve the labels
-            //
-            int previousLineNumber = -1;
+            String currentLine = lineData.trimmedLine;
+            currentLineNumber = lineData.sourceNumber;
+            System.out.println("Line : "+currentLineNumber);
+            System.out.println("Buffer length : "+ buffer.position());
+            //System.out.println("Buffer : "+buffer);
+            lineData.pos = 0;
 
-            for(LineData lineData : getSortedLines())
+            if (lineData.basicNumber < previousLineNumber)
             {
-                String currentLine = lineData.trimmedLine;
-                currentLineNumber = lineData.sourceNumber;
-                System.out.println("Line : "+currentLineNumber);
-                System.out.println("Buffer length : "+buffer.position());
-                //System.out.println("Buffer : "+buffer);
-                lineData.pos = 0;
+                System.err.printf("BASIC line number %d in file %s line number line %d is smaller than the previous line %d", lineData.basicNumber, fileName, currentLineNumber, previousLineNumber);
+            }
+            previousLineNumber = lineData.basicNumber;
 
-                if (lineData.basicNumber < previousLineNumber)
+            if (!currentLine.isEmpty())
+            {
+                String ligne = currentLine;
+                if (ligne.charAt(0) == '#')
                 {
-                    System.err.printf("BASIC line number %d in file %s line number line %d is smaller than the previous line %d", lineData.basicNumber, fileName, currentLineNumber, previousLineNumber);
-                }
-                previousLineNumber = lineData.basicNumber;
-
-                if (!currentLine.isEmpty())
-                {
-                    String ligne = currentLine;
-                    if (ligne.charAt(0) == '#')
+                    // Preprocessor directive
+                    if (ligne.startsWith("#file"))
                     {
-                        // Preprocessor directive
-                        if (ligne.startsWith("#file"))
-                        {
-                            //"#file font.BAS""
-                            // Very approximative "get the name of the file and reset the line counter" code.
-                            // Will clean up that when I will have some more time.
-                            ligne = ligne.substring(5);
-                            fileName = ligne;
-                            currentLineNumber = 0;
-                        }
-                        else
-                        {
-                            System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
-                        }
+                        //"#file font.BAS""
+                        // Very approximative "get the name of the file and reset the line counter" code.
+                        // Will clean up that when I will have some more time.
+                        ligne = ligne.substring(5);
+                        fileName = ligne;
+                        currentLineNumber = 0;
                     }
                     else
                     {
-                        // Standard line
-                        lineBeginning = buffer.position();
-                        buffer.put((byte)0);
-                        buffer.put((byte)0);
+                        System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
+                    }
+                }
+                else
+                {
+                    // Standard line
+                    lineBeginning = buffer.position();
+                    buffer.put((byte)0);
+                    buffer.put((byte)0);
 
-                        buffer.put((byte)(lineData.basicNumber & 0xFF));
-                        buffer.put((byte)(lineData.basicNumber >> 8));
+                    buffer.put((byte)(lineData.basicNumber & 0xFF));
+                    buffer.put((byte)(lineData.basicNumber >> 8));
 
-                        boolean color          = useColor;
-                        boolean isComment      = false;
-                        boolean isQuotedString = false;
-                        boolean isData         = false;
+                    boolean color          = useColor;
+                    boolean isComment      = false;
+                    boolean isQuotedString = false;
+                    boolean isData         = false;
 
-                        while (lineData.getCurrentChar() == ' ' &&
-                                lineData.pos < ligne.length())
-                            lineData.skipChar();
+                    while (lineData.getCurrentChar() == ' ' &&
+                            lineData.pos < ligne.length())
+                        lineData.skipChar();
 
-                        while (lineData.pos < ligne.length())
+                    while (lineData.pos < ligne.length())
+                    {
+                        char car = lineData.getCurrentChar();
+                        char car2 = lineData.getNextChar();
+
+                        if (isComment)
                         {
-                            char car = lineData.getCurrentChar();
-                            char car2 = lineData.getNextChar();
-
-                            if (isComment)
+                            char value = lineData.getCurrentChar();
+                            lineData.skipChar();
+                            if (!result.optimize())
                             {
-                                char value = lineData.getCurrentChar();
-                                lineData.skipChar();
-                                if (!optimize)
+                                if (color)
                                 {
-                                    if (color)
-                                    {
-                                        color = false;
-                                        buffer.put((byte)27);	// ESCAPE
-                                        buffer.put((byte)'B');	// GREEN labels
-                                    }
-                                    buffer.put((byte)value);
+                                    color = false;
+                                    buffer.put((byte)27);	// ESCAPE
+                                    buffer.put((byte)'B');	// GREEN labels
+                                }
+                                buffer.put((byte)value);
+                            }
+                        }
+                        else
+                        if (isQuotedString)
+                        {
+                            if (car == '"')
+                            {
+                                isQuotedString = false;
+                            }
+                            if (car == '~')
+                            {
+                                // Special control code
+                                if ( (car2>=96) && (car2 <= 'z') )  // 96=arobase ('a'-1)
+                                {
+                                    buffer.put((byte)(car2-96));
+                                    lineData.skipNChars(2);
+                                }
+                                else
+                                if ((car2 >= '@') && (car2 <= 'Z'))
+                                {
+                                    buffer.put((byte)27);      // ESCAPE
+                                    buffer.put((byte)car2);    // Actual control code
+                                    lineData.skipNChars(2);
+                                }
+                                else
+                                {
+                                    System.err.printf("The sequence '~%c' in file %s line number line %d is not a valid escape sequence ", car2, fileName, currentLineNumber);
+                                }
+
+                            }
+                            else
+                            {
+                                buffer.put((byte)lineData.getCurrentChar());
+                                lineData.skipChar();
+                            }
+                        }
+                        else
+                        if (isData)
+                        {
+                            // Data is a very special system where nothing is tokenized, so you can have FOR or THEN, they will be interpreted as normal strings
+                            if (car == ':')
+                            {
+                                isData = false;
+                            }
+                            else
+                            if (car == '"')
+                            {
+                                isQuotedString = true;
+                            }
+                            else
+                            {
+                                int savedPosition = buffer.position();
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
+                                processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                if (buffer.position() != savedPosition)
+                                {
+                                    continue;
+                                }
+                            }
+                            buffer.put((byte)lineData.getCurrentChar());
+                            lineData.skipChar();
+                        }
+                        else
+                        {
+                            processOptionalWhiteSpace(buffer, lineData, result.optimize());
+
+                            int keyw = searchKeyword(lineData);
+                            if (keyw == Token_REM.ordinal() || (lineData.getCurrentChar() == '\''))
+                            {
+                                // REM
+                                isComment = true;
+                                if (result.optimize())
+                                {
+                                    continue;
                                 }
                             }
                             else
-                            if (isQuotedString)
+                            if (keyw == Token_DATA.ordinal())
                             {
-                                if (car == '"')
-                                {
-                                    isQuotedString = false;
-                                }
-                                if (car == '~')
-                                {
-                                    // Special control code
-                                    if ( (car2>=96) && (car2 <= 'z') )  // 96=arobase ('a'-1)
-                                    {
-                                        buffer.put((byte)(car2-96));
-                                        lineData.skipNChars(2);
-                                    }
-                                    else
-                                    if ((car2 >= '@') && (car2 <= 'Z'))
-                                    {
-                                        buffer.put((byte)27);      // ESCAPE
-                                        buffer.put((byte)car2);    // Actual control code
-                                        lineData.skipNChars(2);
-                                    }
-                                    else
-                                    {
-                                        System.err.printf("The sequence '~%c' in file %s line number line %d is not a valid escape sequence ", car2, fileName, currentLineNumber);
-                                    }
+                                // DATA
+                                isData = true;
+                            }
 
+                            car  = lineData.getCurrentChar();
+                            car2 = lineData.getNextChar();
+
+                            if (car == '"')
+                            {
+                                isQuotedString = true;
+                            }
+                            else
+                            if ( (car == 0xA7) || ((car == 0xC2) && (car2 == 0xA7)) )
+                            {
+                                //
+                                // Special '§' symbol that get replaced by the current line number.
+                                // Appears in encodings as either "C2 A7" or "A7"
+                                //
+                                buffer.put((byte)lineData.basicNumber);
+                                lineData.skipChar();
+                                if (car == 0xC2)
+                                {
+                                    // Need to skip two characters...
+                                    lineData.skipChar();
                                 }
-                                else
+                                continue;
+                            }
+                            else
+                            if (car == '(')
+                            {
+                                buffer.put((byte)car);
+                                lineData.skipChar();
+                                // Open parenthesis
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
+                                continue;
+                            }
+                            else
+                            if (car == ',')
+                            {
+                                buffer.put((byte)car);
+                                lineData.skipChar();
+                                // comma
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
+                                continue;
+                            }
+
+                            if (keyw >= 0)
+                            {
+                                buffer.put((byte)(keyw | 128));
+                                lineData.skipNChars(keywords[keyw].length());
+                                processOptionalWhiteSpace(buffer, lineData, result.optimize());
+
+                                //
+                                // Note: This bunch of tests should be replaced by actual flags associated to keywords to define their behavior:
+                                // - Can be followed by a line number
+                                // - Can be the complementary part of an expression (and thus should not be part of a symbol)
+                                // - ...
+                                //
+                                if (result.useExtendedBasic() &&
+                                        ((keyw == Token_GOTO.ordinal())
+                                                || (keyw == Token_GOSUB.ordinal())
+                                                || (keyw == Token_RESTORE.ordinal())
+                                                || (keyw == Token_CALL.ordinal())
+                                                || (keyw == Token_SymbolEqual.ordinal())
+                                                || (keyw == Token_SymbolMinus.ordinal())
+                                                || (keyw == Token_SymbolPlus.ordinal())
+                                                || (keyw == Token_SymbolDivide.ordinal())
+                                                || (keyw == Token_TO.ordinal())
+                                                || (keyw == Token_THEN.ordinal())
+                                                || (keyw == Token_ELSE.ordinal())))
+                                {
+                                    if ((keyw == Token_THEN.ordinal()) || (keyw == Token_ELSE.ordinal()))
+                                    {
+                                        if (searchKeyword(lineData) >= 0)
+                                        {
+                                            // THEN and ELSE instructions can be followed directly by a line number... but they can also have an instruction like PRINT
+                                            processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                            continue;
+                                        }
+                                    }
+                                    // Should have one or more (comma separated) numbers, variables, or labels.
+                                    boolean shouldValidateLineNumber = ! ( (keyw == Token_SymbolEqual.ordinal()) ||
+                                            (keyw == Token_SymbolMinus.ordinal()) ||
+                                            (keyw == Token_SymbolPlus.ordinal()) ||
+                                            (keyw == Token_SymbolMultiply.ordinal()) ||
+                                            (keyw == Token_SymbolDivide.ordinal()));
+                                    processPossibleLineNumberLabelOrDefine(buffer, lineData, shouldValidateLineNumber, result.optimize());
+                                    processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                }
+                            }
+                            else
+                            {
+                                if (!processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize()))
                                 {
                                     buffer.put((byte)lineData.getCurrentChar());
                                     lineData.skipChar();
                                 }
                             }
-                            else
-                            if (isData)
-                            {
-                                // Data is a very special system where nothing is tokenized, so you can have FOR or THEN, they will be interpreted as normal strings
-                                if (car == ':')
-                                {
-                                    isData = false;
-                                }
-                                else
-                                if (car == '"')
-                                {
-                                    isQuotedString = true;
-                                }
-                                else
-                                {
-                                    int savedPosition = buffer.position();
-                                    processPossibleLineNumberLabelOrDefine(buffer, lineData, false, optimize);
-                                    processOptionalWhiteSpace(buffer, lineData, optimize);
-                                    if (buffer.position() != savedPosition)
-                                    {
-                                        continue;
-                                    }
-                                }
-                                buffer.put((byte)lineData.getCurrentChar());
-                                lineData.skipChar();
-                            }
-                            else
-                            {
-                                processOptionalWhiteSpace(buffer, lineData, optimize);
-
-                                int keyw = searchKeyword(lineData);
-                                if (keyw == Token_REM.ordinal() || (lineData.getCurrentChar() == '\''))
-                                {
-                                    // REM
-                                    isComment = true;
-                                    if (optimize)
-                                    {
-                                        continue;
-                                    }
-                                }
-                                else
-                                if (keyw == Token_DATA.ordinal())
-                                {
-                                    // DATA
-                                    isData = true;
-                                }
-
-                                car  = lineData.getCurrentChar();
-                                car2 = lineData.getNextChar();
-
-                                if (car == '"')
-                                {
-                                    isQuotedString = true;
-                                }
-                                else
-                                if ( (car == 0xA7) || ((car == 0xC2) && (car2 == 0xA7)) )
-                                {
-                                    //
-                                    // Special '§' symbol that get replaced by the current line number.
-                                    // Appears in encodings as either "C2 A7" or "A7"
-                                    //
-                                    buffer.put((byte)lineData.basicNumber);
-                                    lineData.skipChar();
-                                    if (car == 0xC2)
-                                    {
-                                        // Need to skip two characters...
-                                        lineData.skipChar();
-                                    }
-                                    continue;
-                                }
-                                else
-                                if (car == '(')
-                                {
-                                    buffer.put((byte)car);
-                                    lineData.skipChar();
-                                    // Open parenthesis
-                                    processPossibleLineNumberLabelOrDefine(buffer, lineData, false, optimize);
-                                    continue;
-                                }
-                                else
-                                if (car == ',')
-                                {
-                                    buffer.put((byte)car);
-                                    lineData.skipChar();
-                                    // comma
-                                    processPossibleLineNumberLabelOrDefine(buffer, lineData, false, optimize);
-                                    continue;
-                                }
-
-                                if (keyw >= 0)
-                                {
-                                    buffer.put((byte)(keyw | 128));
-                                    lineData.skipNChars(keywords[keyw].length());
-                                    processOptionalWhiteSpace(buffer, lineData, optimize);
-
-                                    //
-                                    // Note: This bunch of tests should be replaced by actual flags associated to keywords to define their behavior:
-                                    // - Can be followed by a line number
-                                    // - Can be the complementary part of an expression (and thus should not be part of a symbol)
-                                    // - ...
-                                    //
-                                    if (useExtendedBasic &&
-                                            ((keyw == Token_GOTO.ordinal())
-                                                    || (keyw == Token_GOSUB.ordinal())
-                                                    || (keyw == Token_RESTORE.ordinal())
-                                                    || (keyw == Token_CALL.ordinal())
-                                                    || (keyw == Token_SymbolEqual.ordinal())
-                                                    || (keyw == Token_SymbolMinus.ordinal())
-                                                    || (keyw == Token_SymbolPlus.ordinal())
-                                                    || (keyw == Token_SymbolDivide.ordinal())
-                                                    || (keyw == Token_SymbolPlus.ordinal())
-                                                    || (keyw == Token_TO.ordinal())
-                                                    || (keyw == Token_THEN.ordinal())
-                                                    || (keyw == Token_ELSE.ordinal())))
-                                    {
-                                        if ((keyw == Token_THEN.ordinal()) || (keyw == Token_ELSE.ordinal()))
-                                        {
-                                            if (searchKeyword(lineData) >= 0)
-                                            {
-                                                // THEN and ELSE instructions can be followed directly by a line number... but they can also have an instruction like PRINT
-                                                processOptionalWhiteSpace(buffer, lineData, optimize);
-                                                continue;
-                                            }
-                                        }
-                                        // Should have one or more (comma separated) numbers, variables, or labels.
-                                        boolean shouldValidateLineNumber = ! ( (keyw == Token_SymbolEqual.ordinal()) ||
-                                                (keyw == Token_SymbolMinus.ordinal()) ||
-                                                (keyw == Token_SymbolPlus.ordinal()) ||
-                                                (keyw == Token_SymbolMultiply.ordinal()) ||
-                                                (keyw == Token_SymbolDivide.ordinal()));
-                                        processPossibleLineNumberLabelOrDefine(buffer, lineData, shouldValidateLineNumber,optimize);
-                                        processOptionalWhiteSpace(buffer, lineData, optimize);
-                                    }
-                                }
-                                else
-                                {
-                                    if (!processPossibleLineNumberLabelOrDefine(buffer, lineData, false, optimize))
-                                    {
-                                        buffer.put((byte)lineData.getCurrentChar());
-                                        lineData.skipChar();
-                                    }
-                                }
-                            }
                         }
-
-                        if (optimize)
-                        {
-                            // Remove any white space at the end of the line
-                            // while (((bufPtr-1) > (lineStart+4)) && (bufPtr[-1] == ' '))
-                            while(buffer.position()>4 && buffer.get(buffer.position()-1)==' ')
-                            {
-                                buffer.position(buffer.position()-1);
-                            }
-                        }
-                        if (buffer.position() == 4)
-                        {
-                            // If the line is empty, we add a REM token...
-                            buffer.put((byte)(Token_REM.ordinal() | 128));
-                        }
-
-                        buffer.put((byte)0);
-
-                        adr = 0x501 + buffer.position();
-
-                        buffer.put(lineBeginning,(byte)(adr & 0xFF));
-                        buffer.put(lineBeginning+1,(byte)(adr >> 8));
                     }
+
+                    if (result.optimize())
+                    {
+                        // Remove any white space at the end of the line
+                        // while (((bufPtr-1) > (lineStart+4)) && (bufPtr[-1] == ' '))
+                        while(buffer.position()>4 && buffer.get(buffer.position()-1)==' ')
+                        {
+                            buffer.position(buffer.position()-1);
+                        }
+                    }
+                    if (buffer.position() == 4)
+                    {
+                        // If the line is empty, we add a REM token...
+                        buffer.put((byte)(Token_REM.ordinal() | 128));
+                    }
+
+                    buffer.put((byte)0);
+
+                    adr = 0x501 + buffer.position();
+
+                    buffer.put(lineBeginning,(byte)(adr & 0xFF));
+                    buffer.put(lineBeginning+1,(byte)(adr >> 8));
                 }
             }
-            buffer.put((byte)0);
-            buffer.put((byte)0);
         }
+        buffer.put((byte)0);
+        buffer.put((byte)0);
+    }
 
-        System.out.println("Writing to file, buffer length "+buffer.position());
+    private void writeToFile(boolean autoRun, ByteBuffer buffer, DataOutputStream dataOutputStream) throws IOException {
+        int end;
+        System.out.println("Writing to file, buffer length "+ buffer.position());
 
         //following line modified by Wilfrid AVRILLON (Waskol) 06/20/2009
         //It should follow this rule of computation : End_Address=Start_Address+File_Size-1
@@ -953,7 +946,7 @@ public class Bas2Tap {
         int i = buffer.limit();
         end = 0x501 + i;
 
-        byte head[]={ 0x16,0x16,0x16,0x24,0,0,0,0,0,0,5,1,0,0 };
+        byte[] head ={ 0x16,0x16,0x16,0x24,0,0,0,0,0,0,5,1,0,0 };
 
         if (autoRun) head[7] = (byte)0x80;	// Autorun for basic :)
         else		head[7] = 0;
@@ -966,7 +959,7 @@ public class Bas2Tap {
         //
         dataOutputStream.write(head, 0, 13);
         // write the name
-        if (fileName.length() > 0)
+        if (!fileName.isEmpty())
         {
             Path p = Path.of(fileName);
             String name = p.getFileName().toString();
