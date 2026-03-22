@@ -14,9 +14,9 @@
 40 ' of hardcoded values
 50 '
 60 ' RED PAPER on top left
-60 POKE#BB80,16+1
-70 ' and GREEN PAPER next
-80 POKE TextStart+1,Paper+Green
+70 POKE#BB80,16+1
+80 ' and GREEN PAPER next
+90 POKE TextStart+1,Paper+Green
 
 
 

@@ -4,9 +4,11 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static net.torguet.TokenCodes.*;
 
@@ -173,7 +175,7 @@ public class Bas2LBas {
             }
             if (shouldValidateLineNumber) {
                 if (!isValidLineNumber(lineNumber)) {
-                    System.err.printf("Can't find line number %d referred by jump instruction in file %s line number line %d", lineNumber, fileName, currentLineNumber);
+                    System.err.printf("Can't find line number %d referred by jump instruction in file %s line number line %d\n", lineNumber, fileName, currentLineNumber);
                 } else {
                     String label;
                     if (!lineToLabel.containsKey(lineNumber)) {
@@ -237,6 +239,8 @@ public class Bas2LBas {
                          boolean optimize) throws IOException {
         boolean useExtendedBasic = false;
 
+        currentLineNumber = 0;
+        fileName = sourceFile;
         PrintStream printStream = new PrintStream(destFile);
         // Mike: Need to improve the parsing of this with a global function to split
         // a text file in separate lines.
@@ -246,7 +250,6 @@ public class Bas2LBas {
         FirstPass result = doFirstPass(sourceFile, optimize, textData, useExtendedBasic);
         if (result == null) return;
 
-        fileName = sourceFile;
         Path p = Path.of(fileName);
         fileNameWithoutExt = p.getFileName().toString();
         if (fileNameWithoutExt.indexOf(".") > 0) {
@@ -339,7 +342,7 @@ public class Bas2LBas {
                                     int keyw = searchKeyword(defineNameAsLineData);
                                     if (keyw >= 0)
                                     {
-                                        System.err.printf("Define named '%s' in file %s line number line %d contains the name of a BASIC instruction '%s'",
+                                        System.err.printf("Define named '%s' in file %s line number line %d contains the name of a BASIC instruction '%s'\n",
                                                 defineName, fileName, lineData.sourceNumber, BasicProgram.getKeywords()[keyw]);
                                         return null;
                                     }
@@ -355,17 +358,18 @@ public class Bas2LBas {
                                 // #import "path_to_the_symbols_file"
                                 String importPathName = ligne.substring(7).trim();
                                 // We may want to trim out things like comments, etc...
-                                int startQuote = ligne.indexOf('"');
-                                int endQuote = ligne.indexOf('"', startQuote);
+                                int startQuote = importPathName.indexOf('"');
+                                int endQuote = importPathName.indexOf('"', startQuote+1);
 
-                                if ((startQuote != 0) || (endQuote != ligne.length()))
+                                if ((startQuote != 0) || (endQuote != importPathName.length()-1))
                                 {
-                                    System.err.printf("#import directive in file %s line number line %d should be followed by a quoted path", fileName, lineData.sourceNumber);
+                                    System.err.printf("#import directive in file %s line number line %d should be followed by a quoted path\n", fileName, lineData.sourceNumber);
                                     return null;
                                 }
-                                importPathName = importPathName.substring(startQuote + 1, endQuote - 1);  // Keep the part between the quotes
-
-                                List<String> symbols = Files.readAllLines(Path.of(importPathName));
+                                importPathName = importPathName.substring(startQuote + 1, endQuote);  // Keep the part between the quotes
+                                Path filePath = Path.of(fileName);
+                                Path symbolPath = filePath.resolveSibling(importPathName);
+                                List<String> symbols = Files.readAllLines(symbolPath);
 
                                 //
                                 // Load the symbol file (XA format)
@@ -388,7 +392,7 @@ public class Bas2LBas {
                                             int keyw = searchKeyword(lineDataForName);
                                             if (keyw >= 0)
                                             {
-                                                System.err.printf("Define named '%s' in file %s contains the name of a BASIC instruction '%s'", name, importPathName, BasicProgram.getKeywords()[keyw]);
+                                                System.err.printf("Define named '%s' in file %s contains the name of a BASIC instruction '%s'\n", name, importPathName, BasicProgram.getKeywords()[keyw]);
                                                 return null;
                                             }
                                         }
@@ -400,7 +404,7 @@ public class Bas2LBas {
                             }
                             else
                             {
-                                System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
+                                System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d\n", ligne, fileName, lineData.sourceNumber);
                                 return null;
                             }
                         }
@@ -447,7 +451,7 @@ public class Bas2LBas {
                                         if (labelName.isEmpty())
                                         {
                                             // Not a label, so maybe a line of basic without line number
-                                            System.err.printf("Missing label information in file %s line %d", fileName, lineData.sourceNumber);
+                                            System.err.printf("Missing label information in file %s line %d\n", fileName, lineData.sourceNumber);
                                             break;
                                         }
                                         else
@@ -456,14 +460,14 @@ public class Bas2LBas {
                                             var labelInfo = findLabel(labelName);
                                             if (labelInfo != null)
                                             {
-                                                System.err.printf("Label '%s' found in file %s line %d is already defined", labelName, fileName, lineData.sourceNumber);
+                                                System.err.printf("Label '%s' found in file %s line %d is already defined\n", labelName, fileName, lineData.sourceNumber);
                                                 break;
                                             }
 
                                             boolean hasSetIncrement = false;
                                             boolean hasSetNumber = false;
 
-                                            String [] tabInc = line.split("[: \t]");
+                                            String [] tabInc = line.substring(labelName.length()).split("[: \t]");
 
                                             for (String itemInc : tabInc)
                                             {
@@ -483,14 +487,14 @@ public class Bas2LBas {
                                                         // Increment
                                                         if (hasSetIncrement)
                                                         {
-                                                            System.err.printf("Line increment value for label '%s' found in file %s line %d was already set to %d", labelName, fileName, lineData.sourceNumber, incrementStep);
+                                                            System.err.printf("Line increment value for label '%s' found in file %s line %d was already set to %d\n", labelName, fileName, lineData.sourceNumber, incrementStep);
                                                         }
                                                         lineOrIncrement = lineOrIncrement.substring(1);
                                                         try {
                                                             incrementStep = Integer.parseInt(lineOrIncrement);
                                                             hasSetIncrement = true;
                                                         } catch (NumberFormatException nfe) {
-                                                            System.err.printf("Line increment value %s is not an integer", lineOrIncrement);
+                                                            System.err.printf("Line increment value %s is not an integer\n", lineOrIncrement);
                                                         }
                                                     }
                                                     else
@@ -498,12 +502,12 @@ public class Bas2LBas {
                                                         // Line number
                                                         if (hasSetNumber)
                                                         {
-                                                            System.err.printf("Line number value for label '%s' found in file %s line %d was already set to %d", labelName, fileName, lineData.sourceNumber, lastLineNumber);
+                                                            System.err.printf("Line number value for label '%s' found in file %s line %d was already set to %d\n", labelName, fileName, lineData.sourceNumber, lastLineNumber);
                                                         }
                                                         try {
                                                             lastLineNumber = Integer.parseInt(lineOrIncrement);
                                                         } catch (NumberFormatException nfe) {
-                                                            System.err.printf("Invalid line number value '%s' for label '%s' found in file %s line %d", lineOrIncrement, labelName, fileName, lineData.sourceNumber);
+                                                            System.err.printf("Invalid line number value '%s' for label '%s' found in file %s line %d\n", lineOrIncrement, labelName, fileName, lineData.sourceNumber);
                                                         }
 
                                                         setLabel(labelName, lastLineNumber);
@@ -515,6 +519,7 @@ public class Bas2LBas {
                                             if (!hasSetNumber)
                                             {
                                                 setLabel(labelName, lastLineNumber + incrementStep);
+                                                lineToLabel.put(lastLineNumber + incrementStep, labelName);
                                             }
                                             shouldSkip = true;
                                         }
@@ -522,7 +527,7 @@ public class Bas2LBas {
                                 }
                                 else
                                 {
-                                    System.err.printf("Missing line number in file %s line %d", fileName, lineData.sourceNumber);
+                                    System.err.printf("Missing line number in file %s line %d\n", fileName, lineData.sourceNumber);
                                     break;
                                 }
                             }
@@ -560,7 +565,8 @@ public class Bas2LBas {
         //
         // Second pass: Create labels
         //
-        int previousLineNumber = -1;
+        int previousLineNumber;
+        previousLineNumber = -1;
 
         for(LineData lineData : sortedLines)
         {
@@ -629,7 +635,7 @@ public class Bas2LBas {
                                 }
                                 else
                                 {
-                                    System.err.printf("The sequence '~%c' in file %s line number line %d is not a valid escape sequence ", car2, fileName, currentLineNumber);
+                                    System.err.printf("The sequence '~%c' in file %s line number line %d is not a valid escape sequence\n", car2, fileName, currentLineNumber);
                                 }
                             }
                             else
@@ -831,11 +837,25 @@ public class Bas2LBas {
     }
 
     public static void main(String[] args) throws IOException {
-        Bas2LBas bas2LBas = new Bas2LBas();
         if (args.length == 2) {
+            Bas2LBas bas2LBas = new Bas2LBas();
             bas2LBas.bas2LBas(args[0], args[1], false);
         } else {
-            bas2LBas.bas2LBas("src/main/resources/intro.bas", "src/main/resources/intro2L.bas", false);
+            try (Stream<Path> paths = Files.walk(Paths.get("src/main/resources"))) {
+                paths
+                        .filter(Files::isRegularFile)
+                        .forEach((file) -> {
+                            String name = file.toString();
+                            if (name.endsWith(".bas") && !name.endsWith("L.bas")) {
+                                try {
+                                    Bas2LBas bas2LBas = new Bas2LBas();
+                                    bas2LBas.bas2LBas(file.toString(), file + "_L.bas", false);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        });
+            }
         }
     }
 
