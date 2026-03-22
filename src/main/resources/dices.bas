@@ -45,7 +45,7 @@
 400 NEXT C
 410 PRINT@ 34,11;"=";TT
 
-450 PRINT@13,20;CHR$(145);" IS IT OK (Y/N) ";CHR$(144)
+440 PRINT@13,20;CHR$(145);" IS IT OK (Y/N) ";CHR$(144)
 450 GETA$:IFA$="" THEN 450
 455  IF TRY=3 THEN TRY=1:GOTO500
 460  IF A$= "Y" THEN 500
@@ -93,9 +93,9 @@
 5010 FOR R=1TO6: FOR C=1TO7:REM ++ Bonus des Roles
 5020  READ BR(R,C)
 5030 NEXT C, R 
-5010 FOR R=1TO7: FOR C=1TO7:REM ++ Bonus des Cultures 
-5020  READ BC(R,C)
-5030 NEXT C, R
+5040 FOR R=1TO7: FOR C=1TO7:REM ++ Bonus des Cultures
+5060  READ BC(R,C)
+5070 NEXT C, R
 5100 RETURN 
 
 40000 DATA Legionary, Gladiator, Scout, Druid, Sem-Priest, Vestal
@@ -119,7 +119,7 @@
 50090 DATA   4,-2, 4, 0,-4, 0, 2: REM Goth 
 50100 DATA  -2, 4, 0, 3, 0, 0,-1: REM Perse
 50110 DATA   3, 0, 0, 0, 3, 0, 0: REM Roman
-50110 DATA   3, 0, 4, 0,-3, 5, 3: REM Viking
+50120 DATA   3, 0, 4, 0,-3, 5, 3: REM Viking
 
 
 

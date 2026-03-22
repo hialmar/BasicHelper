@@ -240,6 +240,7 @@ public class Bas2LBas {
         PrintStream printStream = new PrintStream(destFile);
         // Mike: Need to improve the parsing of this with a global function to split
         // a text file in separate lines.
+        System.out.println("Reading file "+sourceFile);
         List<String> textData = Files.readAllLines(Path.of(sourceFile), Charset.defaultCharset());
 
         FirstPass result = doFirstPass(sourceFile, optimize, textData, useExtendedBasic);
@@ -254,6 +255,7 @@ public class Bas2LBas {
 
         doSecondPass(result);
 
+        System.out.println("Will write to file "+destFile);
         writeToFile(printStream);
     }
 
@@ -566,9 +568,9 @@ public class Bas2LBas {
             currentLineNumber = lineData.sourceNumber;
             lineData.pos = 0;
 
-            if (lineData.basicNumber < previousLineNumber)
+            if (lineData.basicNumber <= previousLineNumber)
             {
-                System.err.printf("BASIC line number %d in file %s line number line %d is smaller than the previous line %d", lineData.basicNumber, fileName, currentLineNumber, previousLineNumber);
+                System.err.printf("BASIC line number %d in file %s line number line %d is smaller than the previous line %d\n", lineData.basicNumber, fileName, currentLineNumber, previousLineNumber);
             }
             previousLineNumber = lineData.basicNumber;
 
@@ -582,6 +584,7 @@ public class Bas2LBas {
                     boolean isComment      = false;
                     boolean isQuotedString = false;
                     boolean isData         = false;
+                    boolean isOnGoToOrSub  = false;
 
                     while (lineData.getCurrentChar() == ' ' &&
                             lineData.pos < currentLine.length())
@@ -681,6 +684,12 @@ public class Bas2LBas {
                                 // DATA
                                 isData = true;
                             }
+                            else
+                            if (keyw == Token_ON.ordinal())
+                            {
+                                // ON ... GOTO or ON ... GOSUB
+                                isOnGoToOrSub = true;
+                            }
 
                             car  = lineData.getCurrentChar();
                             car2 = lineData.getNextChar();
@@ -720,7 +729,7 @@ public class Bas2LBas {
                                 buffer.append(car);
                                 lineData.skipChar();
                                 // comma
-                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, isOnGoToOrSub, result.optimize());
                                 continue;
                             }
 
@@ -822,8 +831,12 @@ public class Bas2LBas {
     }
 
     public static void main(String[] args) throws IOException {
-        Bas2LBas bas2Tap = new Bas2LBas();
-        bas2Tap.bas2LBas("src/main/resources/intro.bas", "src/main/resources/intro2L.bas",false);
+        Bas2LBas bas2LBas = new Bas2LBas();
+        if (args.length == 2) {
+            bas2LBas.bas2LBas(args[0], args[1], false);
+        } else {
+            bas2LBas.bas2LBas("src/main/resources/intro.bas", "src/main/resources/intro2L.bas", false);
+        }
     }
 
 }
