@@ -11,24 +11,27 @@ import java.util.List;
 
 import static net.torguet.TokenCodes.*;
 
-public class Bas2Tap {
+public class Bas2LBas {
     private final ArrayList<LineData> sortedLines;
-    private final HashMap<String, LineData> lines;
+    private final HashMap<Integer, LineData> lines;
+    private final HashMap<Integer, String> lineToLabel;
     private final HashMap<String, LabelInfos> labels;
     private final HashMap<String, String> defines;
     private int firstLine;
     private int lastLine;
     private int currentLineNumber;
     private String fileName;
+    private int nextLabel = 0;
+    private String fileNameWithoutExt;
 
-
-    public Bas2Tap() {
+    public Bas2LBas() {
         sortedLines = new ArrayList<>();
         lines = new HashMap<>();
         labels = new HashMap<>();
         defines = new HashMap<>();
         firstLine = -1;
         lastLine = -1;
+        lineToLabel = new HashMap<>();
     }
 
 
@@ -39,7 +42,7 @@ public class Bas2Tap {
     public void addValidLineNumber(int number) {
         LineData lineData = new LineData();
         lineData.sourceNumber = number;
-        lines.put(""+number, lineData);
+        lines.put(number, lineData);
     }
 
     public static class LabelInfos {
@@ -88,7 +91,7 @@ public class Bas2Tap {
     }
 
     public boolean isValidLineNumber(int lineNumber) {
-        return lines.containsKey(""+lineNumber);
+        return lines.containsKey(lineNumber);
     }
 
     public void addLine(LineData line) {
@@ -96,7 +99,7 @@ public class Bas2Tap {
         int lineNumber = line.sourceNumber;
         if (firstLine == -1 || lineNumber < firstLine) firstLine = lineNumber;
         if (lastLine == -1 || lineNumber > lastLine) lastLine = lineNumber;
-        lines.put("" + lineNumber, line);
+        lines.put(lineNumber, line);
     }
 
     public void setLabel(String label, int lineNumber) {
@@ -121,79 +124,7 @@ public class Bas2Tap {
         return -1;
     }
 
-    private static void tap2Bas(String inputFile, String destFile) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(inputFile);
-        PrintStream fileOutputStream = null;
-        if ((destFile != null) && (!destFile.isEmpty()))
-        {
-            fileOutputStream = new PrintStream(new FileOutputStream(destFile));
-        }
-        if (fileOutputStream == null)
-        {
-            System.err.println("Can't open file for writing\n");
-            return;
-        }
-
-        byte [] buffer = fileInputStream.readAllBytes();
-
-        if (buffer[0]!=0x16 || buffer[3]!=0x24)
-        {
-            System.err.println("Not an Oric file");
-        }
-        if (buffer[6]!=0)
-        {
-            System.err.println("Not a BASIC file");
-        }
-        int i=13;
-        while (buffer[i++]>0) {
-        }
-        while (buffer[i]!=0 || buffer[i+1]!=0)
-        {
-            i+=2;
-            int lineNumber = buffer[i];
-            if (lineNumber < 0) {
-                lineNumber = 256 + lineNumber;
-            }
-            int lineNumberHigh = buffer[i+1];
-            if (lineNumberHigh < 0) {
-                lineNumberHigh = 256 + lineNumberHigh;
-            }
-            lineNumberHigh = lineNumberHigh << 8;
-            lineNumber = lineNumber+lineNumberHigh;
-            fileOutputStream.print(lineNumber+" ");
-            i+=2;
-            int car;
-            while (buffer[i]!=0)
-            {
-                car=buffer[i];
-                if (car < 0)
-                    car = 256 + car;
-
-                if (car<128)
-                    fileOutputStream.print((char) car);
-                else
-                if (car < 247)
-                {
-                    fileOutputStream.print(BasicProgram.getKeywords()[car - 128]);
-                }
-                else
-                {
-                    // Probably corrupted listing
-                    // 247 : NEXT WITHOUT FOR
-                    fileOutputStream.print("CORRUPTED_ERROR_CODE");
-                    fileOutputStream.print(car);
-                }
-                i++;
-            }
-            i++;
-            fileOutputStream.write('\r');
-            fileOutputStream.write('\n');
-        }
-
-        fileOutputStream.close();
-    }
-
-    private char processOptionalWhiteSpace(ByteBuffer bufPtr, LineData lineData, boolean optimize)
+    private char processOptionalWhiteSpace(StringBuffer bufPtr, LineData lineData, boolean optimize)
     {
         char car = 1;
         while (car != 0)
@@ -203,7 +134,7 @@ public class Bas2Tap {
             {
                 if (!optimize)
                 {
-                    bufPtr.put((byte)car);
+                    bufPtr.append(car);
                 }
                 lineData.skipChar();
             }
@@ -212,7 +143,7 @@ public class Bas2Tap {
             {
                 if (!optimize)
                 {
-                    bufPtr.put((byte)car);
+                    bufPtr.append(car);
                 }
                 lineData.skipChar();
             }
@@ -250,7 +181,7 @@ public class Bas2Tap {
         return potentialLabelName.toString();
     }
 
-    boolean processPossibleLineNumberLabelOrDefine(ByteBuffer bufPtr, LineData ligne,
+    boolean processPossibleLineNumberLabelOrDefine(StringBuffer bufPtr, LineData ligne,
                                                    boolean shouldValidateLineNumber, boolean optimize)
     {
         // Should have one or more (comma separated) numbers, variables, or labels.
@@ -263,13 +194,30 @@ public class Bas2Tap {
             while (isValidLineNumber(car))
             {
                 lineNumber = (lineNumber * 10) + (car - '0');
-                bufPtr.put((byte)car);
                 ligne.skipChar();
                 car = ligne.getCurrentChar();
             }
-            if (shouldValidateLineNumber && ! isValidLineNumber(lineNumber))
-            {
-                System.err.printf("Can't find line number %d referred by jump instruction in file %s line number line %d", lineNumber, fileName, currentLineNumber);
+            if (shouldValidateLineNumber) {
+                if (!isValidLineNumber(lineNumber)) {
+                    System.err.printf("Can't find line number %d referred by jump instruction in file %s line number line %d", lineNumber, fileName, currentLineNumber);
+                } else {
+                    String label = null;
+                    if (!lineToLabel.containsKey(lineNumber)) {
+                        // generate a label for this line
+                        label = fileNameWithoutExt + "_" + nextLabel;
+                        nextLabel++;
+                        lineToLabel.put(lineNumber, label);
+                        addLabel(""+lineNumber, ligne.basicNumber);
+                    } else {
+                        label = lineToLabel.get(lineNumber);
+                        addLabel(""+lineNumber, ligne.basicNumber);
+                    }
+                    // replace by label
+                    bufPtr.append(" ").append(label).append(" ");
+                }
+            } else {
+                // it's a normal number
+                bufPtr.append(lineNumber);
             }
             return true;
         }
@@ -285,10 +233,7 @@ public class Bas2Tap {
                 if (infos != null)
                 {
                     // Found the label \o/
-                    // We replace the value by the stringified line number
-                    int lineNumber = infos.lineNumber;
-                    String stringLineNumber = " "+lineNumber+" ";
-                    bufPtr.put(stringLineNumber.getBytes());
+                    bufPtr.append(" ").append(potentialLabelName).append(" ");
                 }
                 else
                 {
@@ -299,13 +244,13 @@ public class Bas2Tap {
                     {
                         // Found a matching define \o/
                         // We replace the value by the actual value
-                        bufPtr.put(findIt.getBytes());
+                        bufPtr.append(" ").append(findIt).append(" ");
                     }
                     else
                     {
                         // Not a define either... probably a variable then...?
                         // Just write it "as is"
-                        bufPtr.put(potentialLabelName.getBytes());
+                        bufPtr.append(potentialLabelName);
                     }
                 }
                 return true;
@@ -314,12 +259,11 @@ public class Bas2Tap {
         return false;
     }
 
-    private void bas2Tap(String sourceFile, String destFile,
-                         boolean autoRun, boolean useColor, boolean optimize) throws IOException {
+    private void bas2LBas(String sourceFile, String destFile,
+                         boolean optimize) throws IOException {
         boolean useExtendedBasic = false;
 
-        DataOutputStream dataOutputStream = new DataOutputStream(new FileOutputStream(destFile));
-        ByteBuffer buffer = ByteBuffer.allocate(48192);
+        PrintStream printStream = new PrintStream(destFile);
         // Mike: Need to improve the parsing of this with a global function to split
         // a text file in separate lines.
         List<String> textData = Files.readAllLines(Path.of(sourceFile), Charset.defaultCharset());
@@ -328,10 +272,15 @@ public class Bas2Tap {
         if (result == null) return;
 
         fileName = sourceFile;
+        Path p = Path.of(fileName);
+        fileNameWithoutExt = p.getFileName().toString();
+        if (fileNameWithoutExt.indexOf(".") > 0) {
+            fileNameWithoutExt = fileNameWithoutExt.substring(0, fileNameWithoutExt.lastIndexOf("."));
+        }
 
-        doSecondPass(useColor, buffer, result);
+        doSecondPass(result);
 
-        writeToFile(autoRun, buffer, dataOutputStream);
+        writeToFile(printStream);
     }
 
     private record FirstPass(boolean optimize, boolean useExtendedBasic) {
@@ -342,6 +291,7 @@ public class Bas2Tap {
             //
             // First pass: Get the labels and line numbers
             //
+            System.out.println("First pass");
             int lastLineNumber = 0;
             int incrementStep = 5;
 
@@ -470,21 +420,6 @@ public class Bas2Tap {
                                     }
                                 }
 
-              /*
-              const char* ptrDefineName = defineName.c_str();
-              std::string potentialUsableName = GetPotentialSymbolName(ptrDefineName);
-              if (potentialUsableName != defineName)
-              {
-                int keyw = search_keyword(ptrDefineName);
-                if (keyw >= 0)
-                {
-                  ShowError("Define named '%s' in file %s line number line %d contains the name of a BASIC instruction '%s'", defineName.c_str(), m_CurrentFileName.c_str(), lineData.sourceNumber, keywords[keyw]);
-                }
-              }
-
-
-              m_Defines[defineName] = defineValue;
-              */
                                 shouldSkip = true;
                             }
                             else
@@ -644,22 +579,17 @@ public class Bas2Tap {
         return new FirstPass(optimize, useExtendedBasic);
     }
 
-    private void doSecondPass(boolean useColor, ByteBuffer buffer, FirstPass result) {
-        int adr;
-        int lineBeginning;
+    private void doSecondPass(FirstPass result) {
         System.out.println("Second pass");
         //
-        // Second pass: Solve the labels
+        // Second pass: Create labels
         //
         int previousLineNumber = -1;
 
-        for(LineData lineData : getSortedLines())
+        for(LineData lineData : sortedLines)
         {
             String currentLine = lineData.trimmedLine;
             currentLineNumber = lineData.sourceNumber;
-            System.out.println("Line : "+currentLineNumber);
-            System.out.println("Buffer length : "+ buffer.position());
-            //System.out.println("Buffer : "+buffer);
             lineData.pos = 0;
 
             if (lineData.basicNumber < previousLineNumber)
@@ -670,44 +600,20 @@ public class Bas2Tap {
 
             if (!currentLine.isEmpty())
             {
-                String ligne = currentLine;
-                if (ligne.charAt(0) == '#')
-                {
-                    // Preprocessor directive
-                    if (ligne.startsWith("#file"))
-                    {
-                        //"#file font.BAS""
-                        // Very approximative "get the name of the file and reset the line counter" code.
-                        // Will clean up that when I will have some more time.
-                        ligne = ligne.substring(5);
-                        fileName = ligne;
-                        currentLineNumber = 0;
-                    }
-                    else
-                    {
-                        System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d", ligne, fileName, lineData.sourceNumber);
-                    }
-                }
-                else
+                if (currentLine.charAt(0) != '#')
                 {
                     // Standard line
-                    lineBeginning = buffer.position();
-                    buffer.put((byte)0);
-                    buffer.put((byte)0);
+                    StringBuffer buffer = new StringBuffer();
 
-                    buffer.put((byte)(lineData.basicNumber & 0xFF));
-                    buffer.put((byte)(lineData.basicNumber >> 8));
-
-                    boolean color          = useColor;
                     boolean isComment      = false;
                     boolean isQuotedString = false;
                     boolean isData         = false;
 
                     while (lineData.getCurrentChar() == ' ' &&
-                            lineData.pos < ligne.length())
+                            lineData.pos < currentLine.length())
                         lineData.skipChar();
 
-                    while (lineData.pos < ligne.length())
+                    while (lineData.pos < currentLine.length())
                     {
                         char car = lineData.getCurrentChar();
                         char car2 = lineData.getNextChar();
@@ -718,13 +624,7 @@ public class Bas2Tap {
                             lineData.skipChar();
                             if (!result.optimize())
                             {
-                                if (color)
-                                {
-                                    color = false;
-                                    buffer.put((byte)27);	// ESCAPE
-                                    buffer.put((byte)'B');	// GREEN labels
-                                }
-                                buffer.put((byte)value);
+                                buffer.append(value);
                             }
                         }
                         else
@@ -739,25 +639,25 @@ public class Bas2Tap {
                                 // Special control code
                                 if ( (car2>=96) && (car2 <= 'z') )  // 96=arobase ('a'-1)
                                 {
-                                    buffer.put((byte)(car2-96));
+                                    buffer.append(car);
+                                    buffer.append(car2);
                                     lineData.skipNChars(2);
                                 }
                                 else
                                 if ((car2 >= '@') && (car2 <= 'Z'))
                                 {
-                                    buffer.put((byte)27);      // ESCAPE
-                                    buffer.put((byte)car2);    // Actual control code
+                                    buffer.append(car);      // ESCAPE
+                                    buffer.append(car2);    // Actual control code
                                     lineData.skipNChars(2);
                                 }
                                 else
                                 {
                                     System.err.printf("The sequence '~%c' in file %s line number line %d is not a valid escape sequence ", car2, fileName, currentLineNumber);
                                 }
-
                             }
                             else
                             {
-                                buffer.put((byte)lineData.getCurrentChar());
+                                buffer.append(lineData.getCurrentChar());
                                 lineData.skipChar();
                             }
                         }
@@ -776,15 +676,15 @@ public class Bas2Tap {
                             }
                             else
                             {
-                                int savedPosition = buffer.position();
+                                int savedPosition = buffer.length();
                                 processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
                                 processOptionalWhiteSpace(buffer, lineData, result.optimize());
-                                if (buffer.position() != savedPosition)
+                                if (buffer.length() != savedPosition)
                                 {
                                     continue;
                                 }
                             }
-                            buffer.put((byte)lineData.getCurrentChar());
+                            buffer.append(lineData.getCurrentChar());
                             lineData.skipChar();
                         }
                         else
@@ -822,7 +722,7 @@ public class Bas2Tap {
                                 // Special '§' symbol that get replaced by the current line number.
                                 // Appears in encodings as either "C2 A7" or "A7"
                                 //
-                                buffer.put((byte)lineData.basicNumber);
+                                buffer.append(lineData.basicNumber);
                                 lineData.skipChar();
                                 if (car == 0xC2)
                                 {
@@ -834,7 +734,7 @@ public class Bas2Tap {
                             else
                             if (car == '(')
                             {
-                                buffer.put((byte)car);
+                                buffer.append(car);
                                 lineData.skipChar();
                                 // Open parenthesis
                                 processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
@@ -843,7 +743,7 @@ public class Bas2Tap {
                             else
                             if (car == ',')
                             {
-                                buffer.put((byte)car);
+                                buffer.append(car);
                                 lineData.skipChar();
                                 // comma
                                 processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
@@ -852,7 +752,7 @@ public class Bas2Tap {
 
                             if (keyw >= 0)
                             {
-                                buffer.put((byte)(keyw | 128));
+                                buffer.append(keywords[keyw]);
                                 lineData.skipNChars(keywords[keyw].length());
                                 processOptionalWhiteSpace(buffer, lineData, result.optimize());
 
@@ -862,19 +762,18 @@ public class Bas2Tap {
                                 // - Can be the complementary part of an expression (and thus should not be part of a symbol)
                                 // - ...
                                 //
-                                if (result.useExtendedBasic() &&
-                                        ((keyw == Token_GOTO.ordinal())
-                                                || (keyw == Token_GOSUB.ordinal())
-                                                || (keyw == Token_RESTORE.ordinal())
-                                                || (keyw == Token_CALL.ordinal())
-                                                || (keyw == Token_SymbolEqual.ordinal())
-                                                || (keyw == Token_SymbolMinus.ordinal())
-                                                || (keyw == Token_SymbolPlus.ordinal())
-                                                || (keyw == Token_SymbolMultiply.ordinal())
-                                                || (keyw == Token_SymbolDivide.ordinal())
-                                                || (keyw == Token_TO.ordinal())
-                                                || (keyw == Token_THEN.ordinal())
-                                                || (keyw == Token_ELSE.ordinal())))
+                                if ((keyw == Token_GOTO.ordinal())
+                                    || (keyw == Token_GOSUB.ordinal())
+                                    || (keyw == Token_RESTORE.ordinal())
+                                    || (keyw == Token_CALL.ordinal())
+                                    || (keyw == Token_SymbolEqual.ordinal())
+                                    || (keyw == Token_SymbolMinus.ordinal())
+                                    || (keyw == Token_SymbolPlus.ordinal())
+                                    || (keyw == Token_SymbolMultiply.ordinal())
+                                    || (keyw == Token_SymbolDivide.ordinal())
+                                    || (keyw == Token_TO.ordinal())
+                                    || (keyw == Token_THEN.ordinal())
+                                    || (keyw == Token_ELSE.ordinal()))
                                 {
                                     if ((keyw == Token_THEN.ordinal()) || (keyw == Token_ELSE.ordinal()))
                                     {
@@ -887,9 +786,12 @@ public class Bas2Tap {
                                     }
                                     // Should have one or more (comma separated) numbers, variables, or labels.
                                     boolean shouldValidateLineNumber = ! ( (keyw == Token_SymbolEqual.ordinal()) ||
+                                            (keyw == Token_RESTORE.ordinal()) ||
+                                            (keyw == Token_CALL.ordinal()) ||
                                             (keyw == Token_SymbolMinus.ordinal()) ||
                                             (keyw == Token_SymbolPlus.ordinal()) ||
                                             (keyw == Token_SymbolMultiply.ordinal()) ||
+                                            (keyw == Token_TO.ordinal()) ||
                                             (keyw == Token_SymbolDivide.ordinal()));
                                     processPossibleLineNumberLabelOrDefine(buffer, lineData, shouldValidateLineNumber, result.optimize());
                                     processOptionalWhiteSpace(buffer, lineData, result.optimize());
@@ -899,7 +801,7 @@ public class Bas2Tap {
                             {
                                 if (!processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize()))
                                 {
-                                    buffer.put((byte)lineData.getCurrentChar());
+                                    buffer.append(lineData.getCurrentChar());
                                     lineData.skipChar();
                                 }
                             }
@@ -910,77 +812,44 @@ public class Bas2Tap {
                     {
                         // Remove any white space at the end of the line
                         // while (((bufPtr-1) > (lineStart+4)) && (bufPtr[-1] == ' '))
-                        while(buffer.position()>4 && buffer.get(buffer.position()-1)==' ')
+                        while(buffer.length()>4 && buffer.charAt(buffer.length()-1) ==' ')
                         {
-                            buffer.position(buffer.position()-1);
+                            buffer.deleteCharAt(buffer.length()-1);
                         }
                     }
-                    if (buffer.position() == 4)
+                    if (buffer.isEmpty())
                     {
-                        // If the line is empty, we add a REM token...
-                        buffer.put((byte)(Token_REM.ordinal() | 128));
+                        // If the line is empty, we add a REM ...
+                        buffer.append("REM");
                     }
 
-                    buffer.put((byte)0);
+                    // rewrite the line
+                    lineData.trimmedLine = buffer.toString();
 
-                    adr = 0x501 + buffer.position();
-
-                    buffer.put(lineBeginning,(byte)(adr & 0xFF));
-                    buffer.put(lineBeginning+1,(byte)(adr >> 8));
                 }
             }
         }
-        buffer.put((byte)0);
-        buffer.put((byte)0);
     }
 
-    private void writeToFile(boolean autoRun, ByteBuffer buffer, DataOutputStream dataOutputStream) throws IOException {
-        int end;
-        System.out.println("Writing to file, buffer length "+ buffer.position());
-
-        //following line modified by Wilfrid AVRILLON (Waskol) 06/20/2009
-        //It should follow this rule of computation : End_Address=Start_Address+File_Size-1
-        //Let's assume a 1 byte program, it starts at address #501 and ends at address #501 (Address=Address+1-1) !
-        //It was a blocking issue for various utilities (tap2wav for instance)
-        //end=0x501+i-1;	        //end=0x501+i;
-        buffer.flip();
-        int i = buffer.limit();
-        end = 0x501 + i;
-
-        byte[] head ={ 0x16,0x16,0x16,0x24,0,0,0,0,0,0,5,1,0,0 };
-
-        if (autoRun) head[7] = (byte)0x80;	// Autorun for basic :)
-        else		head[7] = 0;
-
-        head[8] = (byte)(end >> 8);
-        head[9] = (byte)(end & 0xFF);
+    private void writeToFile(PrintStream printStream) throws IOException {
 
         //
         // Save file
         //
-        dataOutputStream.write(head, 0, 13);
-        // write the name
-        if (!fileName.isEmpty())
-        {
-            Path p = Path.of(fileName);
-            String name = p.getFileName().toString();
-            if (name.indexOf(".") > 0) {
-                name = name.substring(0, name.lastIndexOf("."));
+        System.out.println("Writing to file");
+        printStream.println("#labels");
+
+        for(LineData lineData : sortedLines) {
+            if (lineToLabel.containsKey(lineData.basicNumber)) {
+                printStream.println(lineToLabel.get(lineData.basicNumber));
             }
-            dataOutputStream.write(name.getBytes());
+            printStream.println(" "+lineData.trimmedLine);
         }
-        dataOutputStream.write(0);
-        buffer.hasArray();
-        dataOutputStream.write(buffer.array(), 0, buffer.limit());
-        dataOutputStream.write(0);
-        // oricutron bug work around
-        //fwrite("\x00", 1, 1, out);
-        dataOutputStream.close();
     }
 
     public static void main(String[] args) throws IOException {
-        Bas2Tap bas2Tap = new Bas2Tap();
-        bas2Tap.bas2Tap("src/main/resources/intro.bas", "src/main/resources/intro2.tap",true,false,false);
+        Bas2LBas bas2Tap = new Bas2LBas();
+        bas2Tap.bas2LBas("src/main/resources/intro.bas", "src/main/resources/intro2L.bas",false);
     }
 
 }

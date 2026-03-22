@@ -6,12 +6,14 @@ public class LineData {
     public int sourceNumber;
     public int basicNumber;
     public int pos;
+    public String label;
 
     public LineData() {
         trimmedLine = "";
         sourceNumber = -1;
         basicNumber = -1;
         pos = 0;
+        label = null;
     }
 
     public LineData(String line) {
