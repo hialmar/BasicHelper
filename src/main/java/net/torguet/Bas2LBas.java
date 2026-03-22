@@ -1,7 +1,6 @@
 package net.torguet;
 
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,8 +16,6 @@ public class Bas2LBas {
     private final HashMap<Integer, String> lineToLabel;
     private final HashMap<String, LabelInfos> labels;
     private final HashMap<String, String> defines;
-    private int firstLine;
-    private int lastLine;
     private int currentLineNumber;
     private String fileName;
     private int nextLabel = 0;
@@ -29,32 +26,29 @@ public class Bas2LBas {
         lines = new HashMap<>();
         labels = new HashMap<>();
         defines = new HashMap<>();
-        firstLine = -1;
-        lastLine = -1;
         lineToLabel = new HashMap<>();
     }
 
 
-    public void addDefine(String defineName, String defineValue) {
+    private void addDefine(String defineName, String defineValue) {
         defines.put(defineName, defineValue);
     }
 
-    public void addValidLineNumber(int number) {
+    private void addValidLineNumber(int number) {
         LineData lineData = new LineData();
         lineData.sourceNumber = number;
         lines.put(number, lineData);
     }
 
-    public static class LabelInfos {
+    private static class LabelInfos {
         int lineNumber;
-        ArrayList<String> referencedLines;
     }
 
-    public LabelInfos findLabel(String potentialLabelName) {
+    private LabelInfos findLabel(String potentialLabelName) {
         return labels.get(potentialLabelName);
     }
 
-    public String findDefine(String potentialDefine) {
+    private String findDefine(String potentialDefine) {
         return defines.get(potentialDefine);
     }
 
@@ -75,46 +69,26 @@ public class Bas2LBas {
                     // 247- : Error messages
             };
 
-
-    public int getFirstLine() {
-        return firstLine;
-    }
-
-    public int getLastLine() {
-        return lastLine;
-    }
-
-    public ArrayList<LineData> getSortedLines() {
-        System.out.println(lines);
-        System.out.println(labels);
-        return sortedLines;
-    }
-
-    public boolean isValidLineNumber(int lineNumber) {
+    private boolean isValidLineNumber(int lineNumber) {
         return lines.containsKey(lineNumber);
     }
 
-    public void addLine(LineData line) {
+    private void addLine(LineData line) {
         sortedLines.add(line);
         int lineNumber = line.sourceNumber;
-        if (firstLine == -1 || lineNumber < firstLine) firstLine = lineNumber;
-        if (lastLine == -1 || lineNumber > lastLine) lastLine = lineNumber;
         lines.put(lineNumber, line);
     }
 
-    public void setLabel(String label, int lineNumber) {
+    private void setLabel(String label, int lineNumber) {
         LabelInfos infos = labels.computeIfAbsent(label, k -> new LabelInfos());
         infos.lineNumber = lineNumber;
     }
 
-    public void addLabel(String label, int lineNumber) {
-        LabelInfos infos = labels.computeIfAbsent(label, k -> new LabelInfos());
-        if (infos.referencedLines == null)
-            infos.referencedLines = new ArrayList<>();
-        infos.referencedLines.add("" + lineNumber);
+    private void addLabel(String label) {
+        labels.computeIfAbsent(label, k -> new LabelInfos());
     }
 
-    public int searchKeyword(LineData keyword) {
+    private int searchKeyword(LineData keyword) {
         String subString = keyword.getCurrentSubString();
         for (int i = 0; i < keywords.length; i++) {
             if (subString.startsWith(keywords[i])) {
@@ -181,7 +155,7 @@ public class Bas2LBas {
         return potentialLabelName.toString();
     }
 
-    boolean processPossibleLineNumberLabelOrDefine(StringBuffer bufPtr, LineData ligne,
+    private boolean processPossibleLineNumberLabelOrDefine(StringBuffer bufPtr, LineData ligne,
                                                    boolean shouldValidateLineNumber, boolean optimize)
     {
         // Should have one or more (comma separated) numbers, variables, or labels.
@@ -201,16 +175,16 @@ public class Bas2LBas {
                 if (!isValidLineNumber(lineNumber)) {
                     System.err.printf("Can't find line number %d referred by jump instruction in file %s line number line %d", lineNumber, fileName, currentLineNumber);
                 } else {
-                    String label = null;
+                    String label;
                     if (!lineToLabel.containsKey(lineNumber)) {
                         // generate a label for this line
                         label = fileNameWithoutExt + "_" + nextLabel;
                         nextLabel++;
                         lineToLabel.put(lineNumber, label);
-                        addLabel(""+lineNumber, ligne.basicNumber);
+                        addLabel(""+lineNumber);
                     } else {
                         label = lineToLabel.get(lineNumber);
-                        addLabel(""+lineNumber, ligne.basicNumber);
+                        addLabel(""+lineNumber);
                     }
                     // replace by label
                     bufPtr.append(" ").append(label).append(" ");
@@ -259,7 +233,7 @@ public class Bas2LBas {
         return false;
     }
 
-    private void bas2LBas(String sourceFile, String destFile,
+    public void bas2LBas(String sourceFile, String destFile,
                          boolean optimize) throws IOException {
         boolean useExtendedBasic = false;
 
@@ -831,7 +805,7 @@ public class Bas2LBas {
         }
     }
 
-    private void writeToFile(PrintStream printStream) throws IOException {
+    private void writeToFile(PrintStream printStream) {
 
         //
         // Save file
