@@ -16,7 +16,6 @@ public class Bas2LBas {
     private final ArrayList<LineData> sortedLines;
     private final HashMap<Integer, LineData> lines;
     private final HashMap<Integer, String> lineToLabel;
-    private final HashMap<String, LabelInfos> labels;
     private int currentLineNumber;
     private String fileName;
     private int nextLabel = 0;
@@ -25,7 +24,6 @@ public class Bas2LBas {
     public Bas2LBas() {
         sortedLines = new ArrayList<>();
         lines = new HashMap<>();
-        labels = new HashMap<>();
         lineToLabel = new HashMap<>();
     }
 
@@ -33,9 +31,6 @@ public class Bas2LBas {
         LineData lineData = new LineData();
         lineData.sourceNumber = number;
         lines.put(number, lineData);
-    }
-
-    private static class LabelInfos {
     }
 
     private static final String[] keywords =
@@ -65,10 +60,6 @@ public class Bas2LBas {
         lines.put(lineNumber, line);
     }
 
-    private void addLabel(String label) {
-        labels.computeIfAbsent(label, k -> new LabelInfos());
-    }
-
     private int searchKeyword(LineData keyword) {
         String subString = keyword.getCurrentSubString();
         for (int i = 0; i < keywords.length; i++) {
@@ -79,12 +70,12 @@ public class Bas2LBas {
         return -1;
     }
 
-    private char processOptionalWhiteSpace(StringBuffer bufPtr, LineData lineData)
+    public char processOptionalWhiteSpace(StringBuffer bufPtr, LineData lineData)
     {
-        char car = 1;
-        while (car != 0)
+
+        while (true)
         {
-            car = lineData.getCurrentChar();
+            char car = lineData.getCurrentChar();
             if (car == ' ')  // Space
             {
                 bufPtr.append(car);
@@ -102,7 +93,6 @@ public class Bas2LBas {
                 return car;
             }
         }
-        return car;
     }
 
     private boolean isValidLineNumber(char car)
@@ -156,10 +146,8 @@ public class Bas2LBas {
                         label = fileNameWithoutExt + "_" + nextLabel;
                         nextLabel++;
                         lineToLabel.put(lineNumber, label);
-                        addLabel(""+lineNumber);
                     } else {
                         label = lineToLabel.get(lineNumber);
-                        addLabel(""+lineNumber);
                     }
                     // replace by label
                     bufPtr.append(" ").append(label).append(" ");
