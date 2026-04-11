@@ -16,8 +16,6 @@ public class Bas2LBas {
     private final ArrayList<LineData> sortedLines;
     private final HashMap<Integer, LineData> lines;
     private final HashMap<Integer, String> lineToLabel;
-    private final HashMap<String, LabelInfos> labels;
-    private final HashMap<String, String> defines;
     private int currentLineNumber;
     private String fileName;
     private int nextLabel = 0;
@@ -26,32 +24,13 @@ public class Bas2LBas {
     public Bas2LBas() {
         sortedLines = new ArrayList<>();
         lines = new HashMap<>();
-        labels = new HashMap<>();
-        defines = new HashMap<>();
         lineToLabel = new HashMap<>();
-    }
-
-
-    private void addDefine(String defineName, String defineValue) {
-        defines.put(defineName, defineValue);
     }
 
     private void addValidLineNumber(int number) {
         LineData lineData = new LineData();
         lineData.sourceNumber = number;
         lines.put(number, lineData);
-    }
-
-    private static class LabelInfos {
-        int lineNumber;
-    }
-
-    private LabelInfos findLabel(String potentialLabelName) {
-        return labels.get(potentialLabelName);
-    }
-
-    private String findDefine(String potentialDefine) {
-        return defines.get(potentialDefine);
     }
 
     private static final String[] keywords =
@@ -81,15 +60,6 @@ public class Bas2LBas {
         lines.put(lineNumber, line);
     }
 
-    private void setLabel(String label, int lineNumber) {
-        LabelInfos infos = labels.computeIfAbsent(label, k -> new LabelInfos());
-        infos.lineNumber = lineNumber;
-    }
-
-    private void addLabel(String label) {
-        labels.computeIfAbsent(label, k -> new LabelInfos());
-    }
-
     private int searchKeyword(LineData keyword) {
         String subString = keyword.getCurrentSubString();
         for (int i = 0; i < keywords.length; i++) {
@@ -100,27 +70,21 @@ public class Bas2LBas {
         return -1;
     }
 
-    private char processOptionalWhiteSpace(StringBuffer bufPtr, LineData lineData, boolean optimize)
+    public char processOptionalWhiteSpace(StringBuffer bufPtr, LineData lineData)
     {
-        char car = 1;
-        while (car != 0)
+
+        while (true)
         {
-            car = lineData.getCurrentChar();
+            char car = lineData.getCurrentChar();
             if (car == ' ')  // Space
             {
-                if (!optimize)
-                {
-                    bufPtr.append(car);
-                }
+                bufPtr.append(car);
                 lineData.skipChar();
             }
             else
             if (car == '\t') // Tab
             {
-                if (!optimize)
-                {
-                    bufPtr.append(car);
-                }
+                bufPtr.append(car);
                 lineData.skipChar();
             }
             else
@@ -129,7 +93,6 @@ public class Bas2LBas {
                 return car;
             }
         }
-        return car;
     }
 
     private boolean isValidLineNumber(char car)
@@ -158,10 +121,10 @@ public class Bas2LBas {
     }
 
     private boolean processPossibleLineNumberLabelOrDefine(StringBuffer bufPtr, LineData ligne,
-                                                   boolean shouldValidateLineNumber, boolean optimize)
+                                                   boolean shouldValidateLineNumber)
     {
         // Should have one or more (comma separated) numbers, variables, or labels.
-        char car = processOptionalWhiteSpace(bufPtr, ligne, optimize);
+        char car = processOptionalWhiteSpace(bufPtr, ligne);
         if (isValidLineNumber(car))
         {
             // Line  Number
@@ -183,10 +146,8 @@ public class Bas2LBas {
                         label = fileNameWithoutExt + "_" + nextLabel;
                         nextLabel++;
                         lineToLabel.put(lineNumber, label);
-                        addLabel(""+lineNumber);
                     } else {
                         label = lineToLabel.get(lineNumber);
-                        addLabel(""+lineNumber);
                     }
                     // replace by label
                     bufPtr.append(" ").append(label).append(" ");
@@ -205,38 +166,15 @@ public class Bas2LBas {
 
             if (!potentialLabelName.isEmpty())
             {
-                LabelInfos infos = findLabel(potentialLabelName);
-                if (infos != null)
-                {
-                    // Found the label \o/
-                    bufPtr.append(" ").append(potentialLabelName).append(" ");
-                }
-                else
-                {
-                    // Did not find the label...
-                    // ...maybe it's a define?
-                    String findIt = findDefine(potentialLabelName);
-                    if (findIt != null)
-                    {
-                        // Found a matching define \o/
-                        // We replace the value by the actual value
-                        bufPtr.append(" ").append(findIt).append(" ");
-                    }
-                    else
-                    {
-                        // Not a define either... probably a variable then...?
-                        // Just write it "as is"
-                        bufPtr.append(potentialLabelName);
-                    }
-                }
+                // Just write it "as is"
+                bufPtr.append(potentialLabelName);
                 return true;
             }
         }
         return false;
     }
 
-    public void bas2LBas(String sourceFile, String destFile,
-                         boolean optimize) throws IOException {
+    public void bas2LBas(String sourceFile, String destFile) throws IOException {
         boolean useExtendedBasic = false;
 
         currentLineNumber = 0;
@@ -247,8 +185,7 @@ public class Bas2LBas {
         System.out.println("Reading file "+sourceFile);
         List<String> textData = Files.readAllLines(Path.of(sourceFile), Charset.defaultCharset());
 
-        FirstPass result = doFirstPass(sourceFile, optimize, textData, useExtendedBasic);
-        if (result == null) return;
+        useExtendedBasic = doFirstPass(sourceFile, textData, useExtendedBasic);
 
         Path p = Path.of(fileName);
         fileNameWithoutExt = p.getFileName().toString();
@@ -256,16 +193,13 @@ public class Bas2LBas {
             fileNameWithoutExt = fileNameWithoutExt.substring(0, fileNameWithoutExt.lastIndexOf("."));
         }
 
-        doSecondPass(result);
+        doSecondPass();
 
         System.out.println("Will write to file "+destFile);
-        writeToFile(printStream);
+        writeToFile(printStream, useExtendedBasic);
     }
 
-    private record FirstPass(boolean optimize, boolean useExtendedBasic) {
-    }
-
-    private FirstPass doFirstPass(String sourceFile, boolean optimize, List<String> textData, boolean useExtendedBasic) throws IOException {
+    private boolean doFirstPass(String sourceFile, List<String> textData, boolean useExtendedBasic) {
         {
             //
             // First pass: Get the labels and line numbers
@@ -275,7 +209,7 @@ public class Bas2LBas {
             int incrementStep = 5;
 
             fileName = sourceFile;
-            String labelName = "";
+            String labelName;
 
             int sourceNumber = 0;
 
@@ -298,115 +232,12 @@ public class Bas2LBas {
                         if (ligne.charAt(0) == '#')
                         {
                             // Preprocessor directive
-                            if (ligne.startsWith("#file"))
-                            {
-                                //"#file font.BAS""
-                                // Very approximative "get the name of the file and reset the line counter" code.
-                                // Will clean up that when I will have some more time.
-                                lineData.skipNChars(5);
-                                fileName = lineData.getCurrentSubString();
-                                lineData.sourceNumber = 0;
-                            }
-                            else
                             if (ligne.startsWith("#labels"))
                             {
                                 //"#labels"
                                 useExtendedBasic = true;
-                                shouldSkip = true;
                             }
-                            else
-                            if (ligne.startsWith("#optimize"))
-                            {
-                                //"#optimize"
-                                optimize = true;
-                                shouldSkip = true;
-                            }
-                            else
-                            if (ligne.startsWith("#define"))
-                            {
-                                //"#define DEFINE_NAME REPLACEMENT_VALUE"
-                                lineData.skipNChars(7);
-                                ligne = lineData.getCurrentSubString().strip();
-                                String [] tab = ligne.split("[ \t]");
-                                if (tab.length < 2) {
-                                    System.err.println("Define missing value");
-                                    return null;
-                                }
-                                String defineName  = tab[0].strip();
-                                String defineValue = tab[1].strip();
-                                LineData defineNameAsLineData = new LineData(defineName);
-
-                                String potentialUsableName = getPotentialSymbolName(defineNameAsLineData);
-                                if (!potentialUsableName.equals(defineName))
-                                {
-                                    int keyw = searchKeyword(defineNameAsLineData);
-                                    if (keyw >= 0)
-                                    {
-                                        System.err.printf("Define named '%s' in file %s line number line %d contains the name of a BASIC instruction '%s'\n",
-                                                defineName, fileName, lineData.sourceNumber, BasicProgram.getKeywords()[keyw]);
-                                        return null;
-                                    }
-                                }
-
-                                addDefine(defineName,defineValue);
-
-                                shouldSkip = true;
-                            }
-                            else
-                            if (ligne.startsWith("#import"))
-                            {
-                                // #import "path_to_the_symbols_file"
-                                String importPathName = ligne.substring(7).trim();
-                                // We may want to trim out things like comments, etc...
-                                int startQuote = importPathName.indexOf('"');
-                                int endQuote = importPathName.indexOf('"', startQuote+1);
-
-                                if ((startQuote != 0) || (endQuote != importPathName.length()-1))
-                                {
-                                    System.err.printf("#import directive in file %s line number line %d should be followed by a quoted path\n", fileName, lineData.sourceNumber);
-                                    return null;
-                                }
-                                importPathName = importPathName.substring(startQuote + 1, endQuote);  // Keep the part between the quotes
-                                Path filePath = Path.of(fileName);
-                                Path symbolPath = filePath.resolveSibling(importPathName);
-                                List<String> symbols = Files.readAllLines(symbolPath);
-
-                                //
-                                // Load the symbol file (XA format)
-                                //
-
-                                for(String symbol : symbols)
-                                {
-                                    String[] tab = symbol.split(" ");
-                                    int symbolAddress = Integer.parseInt(tab[0], 16);   // Address
-                                    String name = tab[1];          // Name
-                                    if (name.startsWith("_"))
-                                    {
-                                        // We are only interested in symbols with external linkage
-                                        name = name.substring(1);
-                                        LineData lineDataForName = new LineData(name);
-
-                                        String potentialUsableName = getPotentialSymbolName(lineDataForName);
-                                        if (potentialUsableName.equals(name))
-                                        {
-                                            int keyw = searchKeyword(lineDataForName);
-                                            if (keyw >= 0)
-                                            {
-                                                System.err.printf("Define named '%s' in file %s contains the name of a BASIC instruction '%s'\n", name, importPathName, BasicProgram.getKeywords()[keyw]);
-                                                return null;
-                                            }
-                                        }
-                                        addDefine(name, ""+symbolAddress);
-                                    }
-                                }
-
-                                shouldSkip = true;
-                            }
-                            else
-                            {
-                                System.err.printf("%s\r\nUnknown preprocessor directive in file %s line number line %d\n", ligne, fileName, lineData.sourceNumber);
-                                return null;
-                            }
+                            // we skip other directives
                         }
                         else
                         {
@@ -432,6 +263,7 @@ public class Bas2LBas {
                                         // We accept the usual C, Assembler and BASIC comments are actual comments that do not count as normal lines
                                         // Technically we could have used a decent pre-processor, or even a full file filter, but I'm aiming at "more bangs for the bucks" approach.
                                         // If necessary we can refactor later
+                                        addLine(lineData);
                                         continue;
                                     }
                                 }
@@ -454,75 +286,6 @@ public class Bas2LBas {
                                             System.err.printf("Missing label information in file %s line %d\n", fileName, lineData.sourceNumber);
                                             break;
                                         }
-                                        else
-                                        {
-                                            // Definitely a label, or something unfortunately detected as a label because of the ":" at the end :p
-                                            var labelInfo = findLabel(labelName);
-                                            if (labelInfo != null)
-                                            {
-                                                System.err.printf("Label '%s' found in file %s line %d is already defined\n", labelName, fileName, lineData.sourceNumber);
-                                                break;
-                                            }
-
-                                            boolean hasSetIncrement = false;
-                                            boolean hasSetNumber = false;
-
-                                            String [] tabInc = line.substring(labelName.length()).split("[: \t]");
-
-                                            for (String itemInc : tabInc)
-                                            {
-                                                String lineOrIncrement = itemInc.trim();
-                                                if (!lineOrIncrement.isEmpty())
-                                                {
-                                                    car  = lineOrIncrement.charAt(0);
-                                                    char car2 = (lineOrIncrement.length()>=2)?lineOrIncrement.charAt(1):0;
-                                                    if ( (car == '\'') || (car == ';') || ((car == '/') && (car2 == '/')) )
-                                                    {
-                                                        // Comment
-                                                        break;
-                                                    }
-                                                    else
-                                                    if (car == '+')
-                                                    {
-                                                        // Increment
-                                                        if (hasSetIncrement)
-                                                        {
-                                                            System.err.printf("Line increment value for label '%s' found in file %s line %d was already set to %d\n", labelName, fileName, lineData.sourceNumber, incrementStep);
-                                                        }
-                                                        lineOrIncrement = lineOrIncrement.substring(1);
-                                                        try {
-                                                            incrementStep = Integer.parseInt(lineOrIncrement);
-                                                            hasSetIncrement = true;
-                                                        } catch (NumberFormatException nfe) {
-                                                            System.err.printf("Line increment value %s is not an integer\n", lineOrIncrement);
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        // Line number
-                                                        if (hasSetNumber)
-                                                        {
-                                                            System.err.printf("Line number value for label '%s' found in file %s line %d was already set to %d\n", labelName, fileName, lineData.sourceNumber, lastLineNumber);
-                                                        }
-                                                        try {
-                                                            lastLineNumber = Integer.parseInt(lineOrIncrement);
-                                                        } catch (NumberFormatException nfe) {
-                                                            System.err.printf("Invalid line number value '%s' for label '%s' found in file %s line %d\n", lineOrIncrement, labelName, fileName, lineData.sourceNumber);
-                                                        }
-
-                                                        setLabel(labelName, lastLineNumber);
-                                                        hasSetNumber = true;
-                                                    }
-                                                }
-                                            }
-
-                                            if (!hasSetNumber)
-                                            {
-                                                setLabel(labelName, lastLineNumber + incrementStep);
-                                                lineToLabel.put(lastLineNumber + incrementStep, labelName);
-                                            }
-                                            shouldSkip = true;
-                                        }
                                     }
                                 }
                                 else
@@ -533,12 +296,8 @@ public class Bas2LBas {
                             }
                             else
                             {
-                                // We have a valid line number, if we have a pending label, record it
-                                if (!labelName.isEmpty())
-                                {
-                                    setLabel(labelName,number);
-                                    labelName = "";
-                                }
+                                // We have a valid line number
+                                // We remove it and store the line
                                 lineData.trimmedLine = lineData.getCurrentSubString().strip();
                             }
                             if (number >= 0)
@@ -557,10 +316,10 @@ public class Bas2LBas {
                 }
             }
         }
-        return new FirstPass(optimize, useExtendedBasic);
+        return useExtendedBasic;
     }
 
-    private void doSecondPass(FirstPass result) {
+    private void doSecondPass() {
         System.out.println("Second pass");
         //
         // Second pass: Create labels
@@ -574,7 +333,7 @@ public class Bas2LBas {
             currentLineNumber = lineData.sourceNumber;
             lineData.pos = 0;
 
-            if (lineData.basicNumber <= previousLineNumber)
+            if (lineData.basicNumber != -1 && lineData.basicNumber <= previousLineNumber)
             {
                 System.err.printf("BASIC line number %d in file %s line number line %d is smaller than the previous line %d\n", lineData.basicNumber, fileName, currentLineNumber, previousLineNumber);
             }
@@ -605,10 +364,7 @@ public class Bas2LBas {
                         {
                             char value = lineData.getCurrentChar();
                             lineData.skipChar();
-                            if (!result.optimize())
-                            {
-                                buffer.append(value);
-                            }
+                            buffer.append(value);
                         }
                         else
                         if (isQuotedString)
@@ -660,8 +416,8 @@ public class Bas2LBas {
                             else
                             {
                                 int savedPosition = buffer.length();
-                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
-                                processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false);
+                                processOptionalWhiteSpace(buffer, lineData);
                                 if (buffer.length() != savedPosition)
                                 {
                                     continue;
@@ -672,17 +428,13 @@ public class Bas2LBas {
                         }
                         else
                         {
-                            processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                            processOptionalWhiteSpace(buffer, lineData);
 
                             int keyw = searchKeyword(lineData);
                             if (keyw == Token_REM.ordinal() || (lineData.getCurrentChar() == '\''))
                             {
                                 // REM
                                 isComment = true;
-                                if (result.optimize())
-                                {
-                                    continue;
-                                }
                             }
                             else
                             if (keyw == Token_DATA.ordinal())
@@ -726,7 +478,7 @@ public class Bas2LBas {
                                 buffer.append(car);
                                 lineData.skipChar();
                                 // Open parenthesis
-                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize());
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, false);
                                 continue;
                             }
                             else
@@ -735,7 +487,7 @@ public class Bas2LBas {
                                 buffer.append(car);
                                 lineData.skipChar();
                                 // comma
-                                processPossibleLineNumberLabelOrDefine(buffer, lineData, isOnGoToOrSub, result.optimize());
+                                processPossibleLineNumberLabelOrDefine(buffer, lineData, isOnGoToOrSub);
                                 continue;
                             }
 
@@ -743,7 +495,7 @@ public class Bas2LBas {
                             {
                                 buffer.append(keywords[keyw]);
                                 lineData.skipNChars(keywords[keyw].length());
-                                processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                processOptionalWhiteSpace(buffer, lineData);
 
                                 //
                                 // Note: This bunch of tests should be replaced by actual flags associated to keywords to define their behavior:
@@ -769,7 +521,7 @@ public class Bas2LBas {
                                         if (searchKeyword(lineData) >= 0)
                                         {
                                             // THEN and ELSE instructions can be followed directly by a line number... but they can also have an instruction like PRINT
-                                            processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                            processOptionalWhiteSpace(buffer, lineData);
                                             continue;
                                         }
                                     }
@@ -782,13 +534,13 @@ public class Bas2LBas {
                                             (keyw == Token_SymbolMultiply.ordinal()) ||
                                             (keyw == Token_TO.ordinal()) ||
                                             (keyw == Token_SymbolDivide.ordinal()));
-                                    processPossibleLineNumberLabelOrDefine(buffer, lineData, shouldValidateLineNumber, result.optimize());
-                                    processOptionalWhiteSpace(buffer, lineData, result.optimize());
+                                    processPossibleLineNumberLabelOrDefine(buffer, lineData, shouldValidateLineNumber);
+                                    processOptionalWhiteSpace(buffer, lineData);
                                 }
                             }
                             else
                             {
-                                if (!processPossibleLineNumberLabelOrDefine(buffer, lineData, false, result.optimize()))
+                                if (!processPossibleLineNumberLabelOrDefine(buffer, lineData, false))
                                 {
                                     buffer.append(lineData.getCurrentChar());
                                     lineData.skipChar();
@@ -797,15 +549,6 @@ public class Bas2LBas {
                         }
                     }
 
-                    if (result.optimize())
-                    {
-                        // Remove any white space at the end of the line
-                        // while (((bufPtr-1) > (lineStart+4)) && (bufPtr[-1] == ' '))
-                        while(buffer.length()>4 && buffer.charAt(buffer.length()-1) ==' ')
-                        {
-                            buffer.deleteCharAt(buffer.length()-1);
-                        }
-                    }
                     if (buffer.isEmpty())
                     {
                         // If the line is empty, we add a REM ...
@@ -814,32 +557,38 @@ public class Bas2LBas {
 
                     // rewrite the line
                     lineData.trimmedLine = buffer.toString();
-
                 }
             }
         }
     }
 
-    private void writeToFile(PrintStream printStream) {
+    private void writeToFile(PrintStream printStream, boolean alreadyUsingExtendedBasic) {
 
         //
         // Save file
         //
         System.out.println("Writing to file");
-        printStream.println("#labels");
+        if (!alreadyUsingExtendedBasic)
+            printStream.println("#labels");
 
         for(LineData lineData : sortedLines) {
-            if (lineToLabel.containsKey(lineData.basicNumber)) {
-                printStream.println(lineToLabel.get(lineData.basicNumber));
+            if (lineData.basicNumber == -1) {
+                // ouput the line as is
+                printStream.println(lineData.trimmedLine);
+            } else {
+                if (lineToLabel.containsKey(lineData.basicNumber)) {
+                    // we need to add a label for this line
+                    printStream.println(lineToLabel.get(lineData.basicNumber));
+                }
+                printStream.println(" " + lineData.trimmedLine);
             }
-            printStream.println(" "+lineData.trimmedLine);
         }
     }
 
     public static void main(String[] args) throws IOException {
         if (args.length == 2) {
             Bas2LBas bas2LBas = new Bas2LBas();
-            bas2LBas.bas2LBas(args[0], args[1], false);
+            bas2LBas.bas2LBas(args[0], args[1]);
         } else {
             try (Stream<Path> paths = Files.walk(Paths.get("src/main/resources"))) {
                 paths
@@ -849,7 +598,7 @@ public class Bas2LBas {
                             if (name.endsWith(".bas") && !name.endsWith("L.bas")) {
                                 try {
                                     Bas2LBas bas2LBas = new Bas2LBas();
-                                    bas2LBas.bas2LBas(file.toString(), file + "_L.bas", false);
+                                    bas2LBas.bas2LBas(file.toString(), file + "_L.bas");
                                 } catch (IOException e) {
                                     throw new RuntimeException(e);
                                 }
