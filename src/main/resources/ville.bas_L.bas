@@ -1,0 +1,734 @@
+#labels
+ REM {+ ORIC 2014-15 + TYRANN 3 + MAXIMUS +}
+ TEXT:LOAD "FONT.BIN":PAPER0:INK6
+ POKE 48035,0:POKE#26A,PEEK(#26A)AND254
+ DIM SN(6,9)
+ GOSUB  ville_0 :GOSUB  ville_1 :PING:CG=0
+ X=2:Y=2:S=2
+ 'FORI=1TO9:FORJ=1TO4:CL(I,J)=1:NEXTJ,I'Toutes les cl�s
+ 'FORI=1TO6:PV(I)=ET(I):NEXTI
+ 'FORP=1TO6:FORI=1TO9:NI(I)=9:SN(P,I)=5:NEXTI,P'Tous les sorts
+ 'FOR M=1TO5:TC(VIL,M)=0:NEXT M'Tous les coffres et combats actifs
+ 'FORI=1TO6:IG(I)=0:NEXT:IG(3)=1:TL=9:VIL=9:NP=2
+ GOTO ville_2 
+ville_27
+ REM Centre
+ T=INT((42-LEN(S$))/2):PRINT @T,L;S$
+ RETURN
+ REM LABY
+ville_11
+ CO = 0 : IF DE >= 128 THEN DE = 128 ELSE DE = 0 : GOSUB  ville_3  : LOAD "LABY"
+ville_2
+ REM VILLAGE
+ X=2:Y=2:MENU=1:
+ TEXT:CLS:PAPER 0:POKE48035,0:POKE#26A,PEEK(#26A) AND 254
+ S$=" "+CR$(VI)+" ":L=17:GOSUB  ville_4 
+ PLOT 13,3,"VOUS POUVEZ..."
+ PLOT 8,5,"1) VERS LES ECHOPPES"
+ PLOT 8,6,"2) INSPECTER UN PERSONNAGE"
+ PLOT 8,7,"3) VISUALISER L'EQUIPE"
+ PLOT 8,8,"4) VOIR LE MESTRE"
+ PRINT @8,9;"5) VISITER "+CR$(VILLE)
+ PLOT 8,10,"6) EXPLORER WESTEROS"
+ IFVI>2 THEN PLOT 8,11,"7) ALLER AU LABORATOIRE"
+ PLOT 8,13,"9) SAUVEGARDE SCENARIO"
+ PLOT 6,15,"F)in": REM "M)emory R)einit B)oost"
+ GOSUB  ville_5 :GOSUB ville_6 
+ville_16
+ GET A$
+ IFA$<>"3"ANDA$<>"5"THEN CG=1
+ IF A$="1" THEN  ville_7 
+ IF A$="2" THEN A=VAL(A$):ENC=6:GOSUB  ville_8 :GOTO  ville_2 
+ IF A$="3" THEN GOSUB  ville_9 :GOTO  ville_2 
+ IF A$="4" THEN ville_10 
+ IF A$="5" THEN X=2:Y=2:S=2:CA=50:GOTO  ville_11 
+ IF A$="6" THEN ville_12 
+ IF A$="7" ANDVI>2THEN ville_13 
+ IF A$="9" THEN ZAP:GOSUB  ville_3 :PING: GOTO  ville_2 
+ IF A$="F" THEN PING:CLS:PLOT 10,10,"ESPECE DE PLEUTRE":END
+ IFA$="M"THENS$=" >"+STR$(FRE(""))+" octets":PLOT 18,15,S$
+ IFA$="R"THEN GOSUB  ville_14 
+ IFA$="B"THEN GOSUB  ville_15 
+ GOTO  ville_16 
+ville_8
+ S$="INSPECTER QUEL HEROS ?  ":GOSUB  ville_17 :PRINT@6,3;S$
+ GOSUB  ville_18 :P=A
+ S$=N$(P)+" ":IF MP(P)<>8 THEN S$=S$+M$(MP(P))
+ L=23:CLS:GOSUB  ville_4 
+ PRINT @4,3;"Carr :";C$(CP(P)):PRINT @21,3;"Niv:"NI(P);"EXP:"XP(P)
+ PRINT @4,5;"Sante:";OK$(OK(P)):PRINT @21,5;"PV :";ET(P)"/"PV(P)
+ PRINT @4,7;"Bourse:";RI(P)"Cerfs d'Argent"
+ PRINT @4,9;"Arme D: ";IT$(WR(P))
+ PRINT @4,10;"Arme G: ";IT$(WL(P))
+ PRINT @4,11;"Animal: ";IT$(BT(P))
+ PRINT @4,12;"Armure: ";IT$(PT(P));"  CA:";CA(P)
+ S$="CC  CT  Fo  Ag  In  FM "
+ PRINT@4,14;CHR$(145)CHR$(135)S$CHR$(144)
+ S$=STR$(CC(P))+" "+STR$(CT(P))+" "+STR$(FO(P))+" "+STR$(AG(P))+" "+STR$(IN(P))+" "+STR$(FM(P))
+ PLOT 5,15,S$
+ L=16:OP(P)=0
+ FOR I=1TO6
+ IF SAD(P,I)>0 THEN M$=ITEM$(SA(P,I)):OP(P)=OP(P)+1 ELSE M$=".............."
+ PRINT @3,L+I;I;" ";M$:NEXT I
+ NC=0
+ FORI=1TO4
+ IF CL(VI,I)=1THENNC=NC+1
+ NEXT
+ PRINT@26,17;"Clefs de"
+ PRINT@26,18;"la ville:":PRINT@34,18;STR$(NC)
+ PRINT@26,20;"Ingredients"
+ PRINT@28,21;"Potion:":PRINT@34,21;STR$(NP)
+ S$="   DONNER:":GOSUB ville_19 :PRINT@1,24;S$
+ S$="A)rgent O)bjet R)ien ":GOSUB ville_17 :PRINT@14,24;S$
+ville_20
+ GETA$:IF A$<>"A" AND A$<>"O" AND A$<>"R"THEN ville_20 
+ IFA$<>"R"THEN ville_21 
+ IFCP(P)>3THEN ville_22 ELSE ville_23 
+ville_21
+ IFA$="A"THEN ville_24 ELSE ville_25 
+ville_22
+ CLS:S$=" * SORTS * ":L=14:GOSUB  ville_4 
+ SS=NI(P):IFSS>8THENSS=8
+ FORI=1TOSS
+ S$=STR$(I)+" - "+SPELL$(CP(P)-3,I):PRINT@11,I+3;S$
+ S$="("+STR$(SN(P,I))+" )": PRINT@25,I+3;S$:NEXT
+ IF CP(P)<>5 OR OK(P)>2THEN GOSUB  ville_26 :GOTO  ville_23 
+ GOSUB  ville_5 
+ville_32
+ S$="Sort de soins (O/N)?":L=13:GOSUB  ville_27 
+ville_28
+ GETA$:IF A$="N" THEN  ville_23  ELSE IF A$<>"O" THEN  ville_28 
+ S$="        LEQUEL  ?      ":L=13:GOSUB  ville_27 
+ville_29
+ GETA$:SP=VAL(A$):IFSP<1 OR SP=4 OR SP=6 OR SP>7 OR SP>NI(P) THEN ZAP:GOTO  ville_29 
+ S$=" INCANTATION:"+SP$(2,SP)+" ":L=13:GOSUB  ville_27 
+ IF SP=5 THEN  ville_30 
+ S$="   SOIGNER QUI  ? Aucun(0) ":L=17:GOSUB  ville_27 
+ville_31
+ GETA$:P=VAL(A$):IFP>6THEN ville_31 ELSEIFP=0THEN ville_23 
+ S$="                           ":L=17:GOSUB ville_27 :PING
+ IF (SP=1 AND OK(P)=4) OR (SP=2 AND OK(P)<>2) OR (SP=3 AND OK(P)<>3) OR (SP=7 AND OK(P)<>4) THEN ZAP:GOTO  ville_23 
+ ET(P)=PV(P):IF SP<>1 THEN OK(P)=1
+ GOSUB  ville_5 :GOTO  ville_32 
+ville_30
+ FOR I=1TO6:IF OK(I)<>4 THEN ET(I)=PV(I)
+ NEXT
+ville_23
+ ZAP:RETURN
+ville_10
+ REM SOINS
+ S$="SOIGNER QUEL HEROS ? ":GOSUB  ville_17 :PRINT@9,3;S$
+ville_33
+ GETP$:P=VAL(P$):IF P<1 OR P>6 THEN PING:GOTO  ville_33 
+ ENC=2:S$="LE MESTRE LUWIN":L=16:CLS:GOSUB  ville_4 
+ PRINT @5,5;"Bienvenue ";N$(P)
+ PRINT @5,7;"Votre condition est: ";OK$(OK(P))
+ S$="Etat:"+STR$(ET(P))+" /"+STR$(PV(P)):PLOT 5,9,S$
+ IF OK(P)=1 AND ET(P)=PV(P) THEN M$="Vous etes en pleine forme !":HO=0
+ IF OK(P)=2 OR OK(P)=3 THEN HO=NI(P)*50
+ IF OK(P)=4 THEN HO=NI(P)*100
+ IF OK(P)=1 AND ET(P)<PV(P) THEN HO=NI(P)*25
+ IF HO=0 THEN PLOT 7,11,M$:PING:WAIT TI*8:GOTO  ville_2 
+ PRINT @5,11;"HONORAIRES: ";HO;" ca"
+ PLOT 5,13,"JE VOUS SOIGNE (O/N) ?"
+ville_35
+ GETA$
+ IF A$="N" THEN  ville_2 
+ IF A$="O" THEN  ville_34 
+ GOTO  ville_35 
+ville_34
+ IF HO > RI(P) THEN S$="Par les 7, Vous etes trop pauvre !":GOTO  ville_36 
+ RI(P)=RI(P)-HO:OK(P)=1:ET(P)=PV(P):HO=0:S$="Par les 7, Vous voila gueri !"
+ville_36
+ PING:GOSUB  ville_17 :PRINT@4,15;S$
+ WAIT25*TI
+ GOTO  ville_2 
+ville_9
+ REM EQUIPE
+ CLS:PRINT@8,1;CHR$(145)CHR$(128)" * TYRANN 3 - EQUIPE *  "CHR$(144)
+ L=3:PRINT@3,L;CHR$(145)CHR$(128)"PERSONNAGES�MAISON   CARRIERE NIV "CHR$(144)
+ PRINT@3,L+1;CHR$(148)CHR$(128)" Argent     CC CT Fo Ag In FM PV  "CHR$(144):L=5:TE=0
+ FOR I=1TO6
+ IF CP(I)=1 THEN EN=131
+ IF CP(I)=2 THEN EN=135
+ IF CP(I)=3 THEN EN=134
+ IF CP(I)=4 THEN EN=133
+ IF CP(I)=5 THEN EN=132
+ IF CP(I)=6 THEN EN=130
+ PRINT@1,L;CHR$(ENC);I;N$(I);:PRINT@17,L;M$(MP(I)):PRINT@27,L;C$(CP(I))
+ PRINT@37,L;NI(I)
+ PRINT@4,L+1;STR$(RI(I));" ca"
+ S$=STR$(CC(I))+STR$(CT(I))+STR$(FO(I))+STR$(AG(I))+STR$(IN(I))+STR$(FM(I))+STR$(ET(I))
+ PRINT@16,L+1;S$:L=L+3:TE=TE+RI(I)
+ NEXT I:PRINT@3,L-1;CHR$(148);CHR$(128)" Argent      CC CT Fo Ag In FM PV  "CHR$(144):WAIT300
+ PRINT@3,L;CHR$(145)CHR$(128)"            < ESPACE >            "CHR$(144)
+ PRINT@4,L;CHR$(128);STR$(TE);" ca"
+ ENC=4
+ville_37
+ GET A$:IF A$<>" " THEN  ville_37 
+ RETURN
+ville_12
+ EN=3:S$="EXPLORER WESTEROS":L=18:CLS:GOSUB  ville_4 :L=3:EN=128
+ FORI=TLTO1STEP-1
+ L=L+1:EN=128+EE(I)
+ PRINT@3,L;CHR$(EN);
+ SS$=". ":IF I=VILTHENSS$="->"
+ PRINT@5,L;I;SS$;CR$(I);"..........."
+ S$=M$(I):IF I=1THENS$="LE TRONE"
+ S$=S$++CHR$(128+EE(VI))
+ PRINT@27,L;S$
+ NEXTI
+ S$="OU VOULEZ VOUS ALLER ?":GOSUB  ville_17 :PRINT@7,L+3;S$
+ville_38
+ GETP$:CR=VAL(P$)
+ IFCR=VIORP$=" "ORCR>TLORCR<1THEN ville_2 
+ S$=" OK !! EN ROUTE POUR:  ":GOSUB  ville_17 :PRINT@7,L+3;S$
+ L=L+5:S$=CR$(CR):GOSUB  ville_27 
+ IFCR<1ORCR>TLTHEN PING:GOTO ville_38 
+ FOR M=2TO5:TC(VIL,M)=0:NEXT M ' reinit combats mais pas coffres
+ VI=CR:GOSUB ville_3 :GOTO ville_2 
+ville_19
+ REM FOND BLEU
+ S$=" "+CHR$(148)+CHR$(128)+S$+CHR$(134)+CHR$(144)+" "
+ RETURN
+ville_17
+ REM FOND ROUGE
+ S$=" "+CHR$(145)+CHR$(135)+S$+CHR$(128+EE(VIL))+CHR$(144)
+ RETURN
+ REM DONNER Ag
+ville_24
+ L=18:CLS:S$=N$(P)+" DONNE":GOSUB  ville_4 
+ FORI=1TO6:PRINT @4,3+I;I;N$(I):PRINT @18,3+I;RI(I);" ca":NEXT
+ PRINT @4,11;"Votre Bourse:";RI(P)"Cerfs Ag"
+ PRINT@12,18;"0 pour Quitter"
+ S$="COMBIEN de C.Ag ":GOSUB  ville_17 :PRINT @3,14;S$;
+ GOSUB  ville_39 :DO=CH:IF DO> RI(P) THEN PING:GOTO  ville_24 
+ IF DO=0 THEN  ville_40 
+ S$="ENRICHIR QUEL HEROS ?  0:Aucun":GOSUB ville_17 :PRINT@3,16;S$
+ville_41
+ GET A$:A=VAL(A$):IF A>6 THEN PING:GOTO  ville_41 
+ IF A=0 THEN  ville_42 
+ RI(A)=RI(A)+DO:RI(P)=RI(P)-DO:PING:GOTO  ville_24 
+ville_40
+ RETURN
+ville_25
+ S$="Quel Objet ? 0:aucun ":GOSUB ville_19 :PRINT@13,24;S$
+ville_43
+ GETA$:O=VAL(A$):IF O>OP(P)THENPING:GOTO ville_43 
+ IFO=0THEN ville_42 
+ IT=SA(P,O):IF(IT>21ANDIT<27)OR(IT>33ANDIT<44)THENL=24:GOSUB ville_44 :GOTO ville_25 
+ L=14:CLS:S$=N$(P)+" DONNE":GOSUB ville_4 
+ S$=IT$(SA(P,O)):GOSUB  ville_19 :PRINT@8,3;S$
+ FORI=1TO6:PRINT @12,4+I;I;N$(I):NEXT
+ville_46
+ PING:PRINT@14,12;" A QUEL HEROS ?  ";
+ville_45
+ GET A$:A=VAL(A$):IF A<1 OR A>6 OR A=P THEN PING:GOTO  ville_45 
+ IFSA(A,6)>0THENL=12:GOSUB ville_44 :GOTO  ville_46 
+ I=0
+ REPEAT:I=I+1
+ UNTILSA(A,I)=0
+ SA(A,I)=SA(P,O):SA(P,O)=0
+ OO=O:GOSUB ville_47 
+ville_42
+ IF MENU=1THEN ville_2 
+ RETURN
+ville_44
+ ZAP:PRINT @14,L;"  !IMPOSSIBLE!  ":WAIT150:RETURN
+ville_7
+ REM SHOPS
+ville_55
+ S$=" GRAND MARCHE ":MENU=0:N=6:ENC=EE(VIL):GOSUB ville_48 
+ PLOT10,10,"Qui veut marchander ?"
+ PLOT8,18,"D > Donner de l'argent"
+ PLOT8,22,"Q > Quitter les commerces"
+ville_50
+ GETP$:P=VAL(P$)
+ IFP$="Q"THEN GOSUB ville_3 :GOTO ville_2 
+ IFP$="D"THEN GOSUB ville_49 
+ IFP<1ORP>6OROK(P)>2THENZAP:GOTO ville_50 
+ville_53
+ S$=" QUELLE ECHOPPE ?":N=NS:GOSUB ville_48 :GOSUB ville_51 
+ PRINT@9,8;" 0 > Changer de Client "
+ville_52
+ GETA$:SH=VAL(A$):IFSH>NSTHEN ville_52 
+ IFA$="C"THEN RI(P)=RI(P)+10000:GOTO ville_53 
+ IFA$="V"THENGOSUB ville_54 :GOTO ville_53 
+ IFSH=0THEN ville_55 
+ville_81
+ REM CHOIX
+ S$=SH$(SH):N=N(SH):EN=CO(SH):GOSUB  ville_48 
+ M$=" IMPOSSIBLE !":FD=145
+ S$=CHR$(FD)+N$(P)+" "+C$(CP(P))+" "+STR$(RI(P))+" ca "+CHR$(144)
+ L=2:GOSUB ville_27 
+ PRINT@6,3;" Que desirez vous acheter ";:GOSUB ville_39 
+ IFCH>NTHEN ville_56 
+ IFCH=0THEN ville_53 
+ IFSH=1THENSS=0
+ IFSH=2THENSS=N(1)
+ IFSH=3THENSS=N(1)+N(2)
+ IFSH=4THENSS=N(1)+N(2)+N(3)
+ IFPR%(CH+SS)>RI(P)THENM$=" TROP CHER ! ":GOTO ville_56 
+ IFOB(P,6)<>0THENM$=" PLEIN! ":GOTO ville_56 
+ REM ARMES
+ IFSH>1THEN ville_57 
+ IFCH>7THEN ville_58 
+ IFPT(P)>0THEN M$="DEJA UNE ARMURE: "+IT$(PT(P)):GOTO ville_56 
+ IFCH>3THEN ville_59 
+ IFCP(P)>2THEN ville_60 
+ GOTO ville_61 
+ville_59
+ IFCH>6THEN ville_62 
+ IFCP(P)>4THEN ville_60 
+ GOTO ville_61 
+ville_62
+ IFCP(P)<5THEN ville_60 
+ville_61
+ PT(P)=CH:CA(P)=8-CH
+ M$="  OK POUR: "+ IT$(PT(P))+" ":GOTO ville_63 
+ville_58
+ REM Achat
+ IFWR(P)>0ANDWL(P)>0THEN M$="DEJA 2 ARMES: ":GOTO ville_56 
+ IFCH>12THEN ville_64 
+ IFCP(P)>2THEN ville_60 
+ GOTO ville_65 
+ville_64
+ REM 13 et 14
+ IFCH>14THEN ville_66 
+ IFCP(P)>4THEN  ville_60 
+ GOTO ville_65 
+ REM TIR
+ville_66
+ IFCH>17THEN ville_67 
+ IFCP(P)<3THEN ville_60 
+ IFCH=17AND(CP(P)<3ORCP(P)>3)THEN ville_60 
+ GOTO ville_65 
+ville_67
+ REM NET
+ IFCH>18THEN ville_65 
+ IFCP(P)<>3THEN ville_60 
+ IFFI=1THEN M$="VOUS AVEZ DEJA UN FILET":GOTO ville_56 ELSEFI=1
+ REM VALID
+ville_65
+ M$="  OK POUR: "+IT$(CH)+" "
+ IFWR(P)=0THENWR(P)=CHELSEWL(P)=CH
+ GOTO ville_63 
+ville_57
+ REM HERBO
+ IFSH>2THEN ville_68 
+ IFCP(P)=5ORCP(P)=6THEN ville_69 
+ IFCH>2ANDCP(P)<4THEN ville_60 
+ IFCP(P)=4ANDCH>7THEN ville_60 
+ville_69
+ M$="  OK POUR: "+IT$(CH+SS)+" ":GOSUB ville_70 
+ GOTO ville_63 
+ville_68
+ REM BAZAR
+ IFSH=4THEN ville_71 
+ IFCH=9ANDCP(P)<5THEN ville_60 
+ IFCH=9THENIFBS=1THENM$="VOUS AVEZ DEJA UNE BOUSSOLE":GOTO ville_56 ELSEBS=1
+ IF CH=10ANDCP(P)=6 THEN IF SD=1THEN M$="VOUS AVEZ DEJA UNE SELLE":GOTO ville_56  ELSE SD=P
+ IF CH=10ANDCP(P)<>6 THEN  ville_60 
+ M$="  OK POUR: "+IT$(CH+SS)+" ":GOSUB ville_70 
+ GOTO ville_63 
+ville_71
+ REM ANIMAL
+ IFCH=1ANDMP(P)<8THEN M$="Vous etes du SUD!":GOTO ville_56 
+ IFBT(P)>0THEN M$="DEJA UN ANIMAL: "+IT$(BT(P)):GOTO ville_56 
+ M$="  OK POUR: "+IT$(CH+SS)+" "
+ BT(P)=CH+SS
+ GOTO ville_63 
+ville_70
+ REM SAC
+ IFSA(P,1)=0THENI=1:GOTO ville_72 
+ I=0:REPEAT
+ I=I+1
+ UNTILSA(P,I)=0ORI=6
+ IFSA(P,6)>0THEN M$="PLEIN!":GOTO ville_56 
+ville_72
+ SA(P,I)=SS+CH
+ RETURN
+ville_54
+ IFWR(P)=0ANDWL(P)=0ANDPT(P)=0ANDSA(P,1)=0ANDBT(P)=0THENS$=" ! VIDE ! ":GOSUB ville_17 :PRINT@20,17;S$:ZAP:WAIT80:RETURN
+ville_75
+ PING:S$="LEQUEL ? ":GOSUB ville_17 :PRINT@5,23;S$
+ville_73
+ GETA$:CH=VAL(A$):IFCH>9THENZAP:GOTO ville_73 
+ IFCH=0THENCH=10
+ IFCH>6THEN ville_74 
+ IFSA(P,CH)=0THEN ville_75 
+ IFSA(P,CH)=35THENBS=0:GOTO ville_76 
+ IFSA(P,CH)=36THENSD=0:GOTO ville_76 
+ville_74
+ IF(CH=7ANDWR(P)=0)OR(CH=8ANDWL(P)=0)OR(CH=9ANDPT(P)=0)OR(CH=10ANDBT(P)=0)THEN ville_75 
+ville_76
+ IFCH<7THENPX=PR%(SA(P,CH)):GOSUB ville_77 :SA(P,CH)=0:OO=CH:GOSUB ville_47 :GOTO ville_78 
+ IFCH>7THEN  ville_79 
+ IFWR(P)=18THENFI=0
+ PX=PR%(WR(P)):GOSUB ville_77 :WR(P)=0
+ IFWL(P)>0THEN WR(P)=WL(P):WL(P)=0
+ville_79
+ IFCH>8THEN ville_80 
+ IFWL(P)=18THENFI=0
+ PX=PR%(WL(P)):GOSUB ville_77 :WL(P)=0
+ville_80
+ IFCH=9THENPX=PR%(PT(P)):GOSUB ville_77 :PT(P)=0:CA(P)=0
+ IFCH=10THENPX=PR%(BT(P)):GOSUB ville_77 :BT(P)=0
+ville_78
+ RETURN
+ville_77
+ REM OK
+ RI(P)=RI(P)+INT(PX*2/3):ZAP:RETURN
+ville_47
+ FORI=OOTO5
+ IFSA(P,I+1)>0THENSA(P,I)=SA(P,I+1):SA(P,I+1)=0
+ NEXTI
+ RETURN
+ville_63
+ REM VALIDE
+ RI(P)=RI(P)-PR%(CH+SS):FD=148:GOTO ville_56 
+ville_60
+ M$="Impossible pour un "+C$(CP(P))
+ville_56
+ T=INT((38-LEN(M$))/2)
+ PING:CLS:PRINT:PRINT@T,5;CHR$(FD);" ";M$;" ";CHR$(144)
+ WAIT140:SS=0:GOTO ville_81 
+ville_49
+ PING:PLOT8,18,"Qui Donne  de l'argent ?"
+ville_82
+ GETP$:P=VAL(P$)
+ IFP<1ORP>6OROK(P)>2THENZAP:GOTO ville_82 
+ GOSUB ville_24 :GOTO ville_7 
+ RETURN
+ville_51
+ REM CLIENT
+ S$=CHR$(135)+CHR$(145)+"INVENTAIRE: "+N$(P)+" "+CHR$(128+ENC)
+ L=10:T=INT((42-LEN(S$))/2)
+ PRINT@T,L;S$;CHR$(144)
+ L=L+2
+ FORI=1TO14:PRINT@2,I+9;"*":PRINT@39,I+9;"*":NEXTI
+ PRINT@29,L;C$(CP(P))
+ PRINT@28,L+1;RI(P)"ca"
+ PRINT@29,L+8;"CA>";CA(P)
+ FORI=1TO6
+ IFSA(P,I)>0THENM$=IT$(SA(P,I))ELSEM$="............"
+ PRINT@4,L+I-1;I;M$
+ NEXTI:L=L+I-1
+ IFWR(P)>0THEN M$=IT$(WR(P))ELSEM$="..........."
+ PRINT@5,L;I;M$:L=L+1:I=I+1
+ IFWL(P)>0THEN M$=IT$(WL(P))ELSEM$="..........."
+ PRINT@5,L;I;M$:L=L+1:I=I+1
+ IF PT(P)>0THENM$=IT$(PT(P))ELSE M$="..........."
+ PRINT@5,L;I;M$:L=L+1:I=I+1
+ IFBT(P)>0THENM$=IT$(BT(P))ELSEM$="..........."
+ PRINT@4,L;I;M$:L=L+2
+ PRINT@2,L;"*************************************"
+ PRINT@6,L;CHR$(135);CHR$(145);"V)endre ";CHR$(128+ENC);CHR$(144)
+ RETURN
+ville_48
+ CLS:PRINT:INK(ENC):PRINTCHR$(17);
+ POKE#26A,PEEK(#26A)AND254
+ PRINT"**************************************"
+ T=INT((33-LEN(S$))/2)
+ S$="[ "+S$+" ] ":GOSUB ville_17 :PRINT@T,1;S$;CHR$(128+EN)
+ INK(EN):J=N+4
+ FORI=1TOJ:PRINT@2,I+1;"*":PRINT@39,I+1;"*":NEXTI
+ FORI=1TON:L=I+2
+ IFN<>6THEN ville_83 
+ T=34-LEN(STR$(RI(I)))
+ IFOK(I)<3THENS$=C$(CP(I))ELSES$=OK$(OK(I))
+ PRINT@4,L;I;N$(I);@18,L;S$;@T,L;RI(I);"ca":GOTO ville_84 
+ville_83
+ IFN<>NSTHEN ville_85 
+ PRINT@12,L;I;SH$(I):GOTO ville_84 
+ville_85
+ REM ITEMS
+ IFSH=1THENO$=IT$(I):PX=PR%(I)
+ IFSH=2THENO$=IT$(I+N(1)):PX=PR%(I+N(1))
+ IFSH=3THENO$=IT$(I+N(1)+N(2)):PX=PR%(I+N(1)+N(2))
+ IFSH=4THENO$=IT$(I+N(1)+N(2)+N(3)):PX=PR%(I+N(1)+N(2)+N(3))
+ T=8-LEN(STR$(I)):PRINT@T,L+1;I"..."
+ T=14-LEN(STR$(PX)):PRINT@T,L+1;PX"...."
+ PRINT@17,L+1;O$
+ville_84
+ NEXTI
+ IFN<>6ANDN<>NSTHENPRINT@12,L+3;" 0 POUR SORTIR"
+ PRINT@2,L+4;"**************************************"
+ RETURN
+ville_4
+ TEXT:PAPER0:INKEE(VI):PRINT
+ PRINT" ************************************"
+ FORI=1TOL:PRINT@2,I;"*":PRINT@38,I;"*":NEXTI
+ T=INT((31-LEN(S$))/2)
+ S$="< "+S$+" > ":GOSUB ville_17 :PRINT@T,1;S$
+ PRINT@2,I;"*************************************"
+ RETURN
+ville_5
+ L=19:PRINT@1,L;CHR$(145)"PERSONNAGES �  CASTE �   �PV �ET �CA"
+ FORI=1TO6:L=L+1
+ IFCP(I)=1THENEN=131
+ IFCP(I)=2THENEN=135
+ IFCP(I)=3THENEN=134
+ IFCP(I)=4THENEN=133
+ IFCP(I)=5THENEN=130
+ IFCP(I)=6THENEN=132
+ IFOK(I)=4THENEN=129
+ IFOK(I)>1THENS$=OK$(OK(I))ELSES$=C$(CP(I))
+ PRINT@1,L;CHR$(EN);I;N$(I);:PRINT@17,L;S$;
+ PRINT@27,L;PV(I):PRINT@34-LEN(STR$(ET(I))),L;ET(I):PRINT@38-LEN(STR$(CA(I))),L;CA(I)
+ NEXT
+ EN=4
+ RETURN
+ville_13
+ CLS:L=20:S$=" # Labo d'Alchimie # ":EN=7:GOSUB ville_4 
+ S$=" MEMBRES ADMIS ":GOSUB ville_19 :PLOT10,3,S$:J=1
+ FORI=1TO6
+ IFCP(I)<5THEN ville_86 
+ PRINT@11,4+J;J;N$(I);" ";C$(CP(I)):J=J+1
+ville_86
+ NEXT
+ IFJ=1THEN ZAP:PRINT @11,4+J;J;" DEHORS !":WAIT300:ZAP:GOTO ville_2 
+ IFVI<>9THENPRINT@10,5+J;" > Il n'y a personne ":GOTO ville_87 
+ PRINT@10,5+J;J;"Sorciere du Nord"
+ville_87
+ IF PM=1THEN ville_88 
+ S$="Ingredients Potion du Nord"+STR$(NP):GOSUB ville_19 :PRINT@3,7+J;S$
+ FORI=1TO6:PRINT @5,9+J+I;"-> ";IG$(I)
+ IFIG(I)=1THENPLOT24,9+J+I,"> OK"
+ NEXT
+ L=21:GOSUB ville_26 
+ IFNP<6ORVI<>9ORPM=1THEN ville_89 
+ FORI=1TO5:SHOOT:WAIT30:PAPER I:NEXTI:EXPLODE:PAPER0
+ FORI=1TO9
+ PRINT@3,9+I;CHR$(144)"                                  ":NEXT
+ PM=1:S$="L'Athanor cuit la potion":GOSUB ville_17 :L=12:GOSUB ville_27 
+ FORI=1TO25:PRINT@7+I,14;">":WAIT20:NEXT
+ville_88
+ L=12:S$="!! La potion est prete !! ":GOSUB ville_19 :GOSUB ville_27 :PING:WAIT30
+ S$="Direction Castleblack ":GOSUB ville_17 :L=16:GOSUB ville_27 :ZAP:WAIT50
+ L=21:GOSUB ville_26 
+ville_89
+ GOTO ville_2 
+ville_6
+ FOR P=1TO6' recharge sorts
+ IFET(P)>0ANDET(P)<5THENET(P)=ET(P)+FNA(3)
+ IFCP(P)<4THEN ville_90 
+ SS=NI(P):IFSS>8THENSS=8
+ FORI=1TOSS
+ SN(P,I)=FNA(3)+1
+ IFI=5ORI=6THENSN(P,I)=FNA(2)+1
+ IFI=7THENSN(P,I)=FNA(2)
+ NEXTI
+ SN(P,8)=1
+ville_90
+ NEXTP
+ RETURN
+ville_26
+ S$="< ESPACE > ":GOSUB  ville_17 :PRINT@13,L;S$:GETA$:IF A$<>" " THEN  ville_26 
+ RETURN
+ville_91
+ IF KEY$="" THEN  ville_91 
+ RETURN
+ville_18
+ GET A$:A=VAL(A$):IF A<1 OR A>6 THEN PING:GOTO  ville_18 
+ RETURN
+ville_14
+ REM REINITIALISE TOUT
+ FORI=1TO9
+ FORJ=1TO4:CL(I,J)=0:NEXTJ'cles
+ FORM=1TO5:TC(VIL,M)=0:NEXT M ' coffres et combats
+ NEXTI
+ FORI=1TO6:IG(I)=0:NEXTI:NP=0'ingredients potion
+ X=2:Y=2:S=2:VILLE=1:TL=1
+ PLOT23,16,"REINIT..OK":ZAP
+ RETURN
+ville_15
+ REM BOOSTE TOUT
+ FORI=1TO9
+ FORJ=1TO4:CL(I,J)=1:NEXTJ'cles
+ NEXTI
+ FORI=1TO6:IG(I)=1'ingredients potion,
+ NI(I)=15:XP(I)=0:RI(I)=10000:NEXTI:NP=6'persos
+ X=2:Y=2:S=2:TL=9
+ PLOT27,16,"BOOST..OK":ZAP
+ RETURN
+ville_39
+ S$ = ""
+ville_93
+ GET CH$
+ IF ASC(CH$) = 13 THEN  ville_92 
+ IF ASC(CH$) < 48 OR ASC(CH$) > 57 THEN PING:GOTO  ville_93 
+ PRINT CH$;
+ S$ = S$ + CH$
+ GOTO  ville_93 
+ville_92
+ CH = VAL(S$)
+ PRINT
+ RETURN
+ville_1
+ GOSUB ville_94 
+ LOAD"TEAM.BIN"
+ O1=#A000
+ O1=O1+1:VIL=PEEK(O1)
+ REM PRINT"Version " VIL
+ O1=O1+1:X=PEEK(O1)
+ O1=O1+1:Y=PEEK(O1)
+ O1=O1+1:S=PEEK(O1)
+ O1=O1+1:CA=PEEK(O1)
+ O1=O1+1:VIL=PEEK(O1)
+ REM PRINT"Ville " VIL "X " X "Y " Y "S " S "CA " CA
+ FOR P=1TO6
+ O1=O1+1:DD=PEEK(O1)
+ FORJ=1TODD:O1=O1+1:N$(P)=N$(P)+CHR$(PEEK(O1)):NEXTJ
+ O1=O1+1:RI(P)=DEEK(O1)*10:O1=O1+2:CP(P)=PEEK(O1)
+ O1=O1+1:MP(P)=PEEK(O1)
+ O1=O1+1:CC(P)=PEEK(O1)
+ O1=O1+1:CT(P)=PEEK(O1)
+ O1=O1+1:FO(P)=PEEK(O1)
+ O1=O1+1:AG(P)=PEEK(O1)
+ O1=O1+1:IN(P)=PEEK(O1)
+ O1=O1+1:FM(P)=PEEK(O1)
+ O1=O1+1:PV(P)=PEEK(O1)::GOSUB ville_95 
+ O1=O1+1:ET(P)=PEEK(O1)
+ O1=O1+1:OK(P)=PEEK(O1)
+ O1=O1+1:NI(P)=PEEK(O1)
+ O1=O1+1:XP(P)=DEEK(O1)
+ O1=O1+2:WR(P)=PEEK(O1)
+ O1=O1+1:WL(P)=PEEK(O1)
+ O1=O1+1:PT(P)=PEEK(O1)
+ O1=O1+1:CA(P)=PEEK(O1)
+ O1=O1+1:BT(P)=PEEK(O1)
+ FORI=1TO6:O1=O1+1:SAD(P,I)=PEEK(O1):NEXTI
+ IF CP(P)>3 THEN FORI=1TO8:O1=O1+1:SN(P,I)=PEEK(O1):NEXT
+ GOSUB ville_95 :NEXT P
+ O1=O1+1:BS=PEEK(O1)
+ O1=O1+1:FI=PEEK(O1)
+ O1=O1+1:SD=PEEK(O1):GOSUB ville_95 
+ FOR V=1TO9:FOR C=1TO4:O1=O1+1:CL(V,C)=PEEK(O1):NEXT C,V
+ FOR I=1TO6:O1=O1+1:IG(I)=PEEK(O1):NEXT
+ FOR V=1TO9:FORM=1TO5:O1=O1+1:TC(V,M)=PEEK(O1):NEXT M,V
+ O1=O1+1:DE=PEEK(O1):GOSUB ville_95 
+ O1=O1+1:TL=PEEK(O1):'PRINT "TL";TL:REM FR = FRE("")
+ O1=O1+1:NP=PEEK(O1)
+ O1=O1+1:NF=PEEK(O1)
+ O1=O1+1:PM=PEEK(O1)::GOSUB ville_95 
+ O1=O1+1:OUT=PEEK(O1)::GOSUB ville_95 
+ RETURN
+ville_3
+ TEXT:CLS:PRINT@8,2;CHR$(145);CHR$(135);"++ PREPARE L EQUIPE ++ ";CHR$(144)
+ O1=#A000::GOSUB ville_96 
+ O1=O1+1:POKEO1,1
+ O1=O1+1:POKEO1,X
+ O1=O1+1:POKEO1,Y
+ O1=O1+1:POKEO1,S
+ O1=O1+1:POKEO1,CA
+ O1=O1+1:POKEO1,VIL
+ FOR P=1TO6
+ O1=O1+1:POKEO1,LEN(N$(P))
+ FORJ=1TOLEN(N$(P)):O1=O1+1:POKEO1,ASC(MID$(N$(P),J,1)):NEXT
+ O1=O1+1:DOKEO1,INT(RI(P)/10)
+ O1=O1+2:POKEO1,CP(P)
+ O1=O1+1:POKEO1,MP(P)
+ O1=O1+1:POKEO1,CC(P)
+ O1=O1+1:POKEO1,CT(P)
+ O1=O1+1:POKEO1,FO(P)
+ O1=O1+1:POKEO1,AG(P)
+ O1=O1+1:POKEO1,IN(P)
+ O1=O1+1:POKEO1,FM(P)::GOSUB ville_95 
+ O1=O1+1:POKEO1,PV(P)
+ O1=O1+1:POKEO1,ET(P)
+ O1=O1+1:POKEO1,OK(P)
+ O1=O1+1:POKEO1,NI(P)
+ O1=O1+1:DOKEO1,XP(P)
+ O1=O1+2:POKEO1,WR(P)
+ O1=O1+1:POKEO1,WL(P)
+ O1=O1+1:POKEO1,PT(P)
+ O1=O1+1:POKEO1,CA(P)
+ O1=O1+1:POKEO1,BT(P)::GOSUB ville_95 
+ FORI=1TO6:O1=O1+1:POKEO1,SAD(P,I):NEXTI
+ IF CP(P)>3 THEN FORI=1TO8:O1=O1+1:POKEO1,SN(P,I):NEXT
+ NEXT P
+ O1=O1+1:POKEO1,BS
+ O1=O1+1:POKEO1,FI
+ O1=O1+1:POKEO1,SD:GOSUB ville_95 
+ FOR V=1TO9:FOR C=1TO4:O1=O1+1:POKEO1,CL(V,C):NEXT C,V
+ FORI=1TO6:O1=O1+1:POKEO1,IG(I):NEXT
+ FOR V=1TO9:FORM=1TO5:O1=O1+1:POKEO1,TC(V,M):NEXT M,V
+ O1=O1+1:POKEO1,DE
+ O1=O1+1:POKEO1,TL:REM PRINT "TL";TL
+ O1=O1+1:POKEO1,NP:GOSUB ville_95 
+ O1=O1+1:POKEO1,NF
+ O1=O1+1:POKEO1,PM::
+ O1=O1+1:POKEO1,OUT::GOSUB ville_95 
+ PING:SAVEU "TEAM.BIN",A#A000,EO1:REM FR = FRE("")
+ REM SAVEU "TEAM2.BIN",A#A000,EO1
+ RETURN
+ville_94
+ CLS:PRINT@7,8;".. Chargement * Patientez .."
+ S$=CHR$(148)+" "+CHR$(144):CU=1:GOTO ville_95 
+ville_96
+ PRINT@7,8;"++ Sauvegarde + Patientez ++"
+ S$=CHR$(145)+" "+CHR$(144):CU=1
+ville_95
+ CU=CU+2:PRINT@CU,9;S$:REM FR = FRE("")
+ RETURN
+ville_0
+ TI=20:HV=6:DF=0
+ DIM IT$(55),PR%(55),IP$(10,2),TP$(2,15)
+ GOSUB  ville_97 
+ FOR I=1TO4:READ TX$(I):NEXT I
+ FOR I=1TO4:READ OK$(I):NEXTI
+ FOR I=1TO9:FOR J=1TO4:READ PS$(I,J):NEXT J,I:READ PS$(9,5):READ PS$(9,6)
+ DEF FNA(X)=INT(RND(1)*X)+1
+ FORI=1TO6:READ C$(I):NEXTI
+ FORI=1TO9:READ M$(I),CR$(I),EE(I):NEXT
+ NS=4:NI=0:FOR I=1TO4:READ SH$(I),N(I),CO(I):NI=NI+N(I):NEXT
+ FORI=1TO6:READ IG$(I):NEXT
+ FORH=1TO3:FORI=1TO8:READ SP$(H,I):NEXTI,H
+ REM FR = FRE("")
+ RETURN
+ REM Lecture TITEMS
+ville_97
+ LOAD "TITEMS.BIN"
+ O1=#A000
+ LI=PEEK(O1)
+ FOR I=1 TO LI
+ O1=O1+1:LG=PEEK(O1)
+ S$=""
+ IF LG=0 THEN  ville_98 
+ FOR J=1 TO LG
+ O1=O1+1:S$=S$+CHR$(PEEK(O1))
+ville_98
+ NEXT
+ ITEM$(I)=S$
+ NEXT
+ REM Lecture TPRIX
+ LOAD "TPRIX.BIN"
+ O1=#A000
+ LP=PEEK(O1)
+ FOR I=1 TO LP
+ O1=O1+1:PR%(I)=DEEK(O1):O1=O1+1
+ NEXT
+ RETURN
+ DATA "Ouille!","Le mur n'a rien senti","Tu as bu ?","Ou est la clef ?"
+ DATA "OK","-Empoi- ","-Paral- ",">MORT< "
+ DATA "King Robert","Queen Cersei","PRISON","Conseil"
+ DATA "Prince Oberyn","Laboratory","PRISON","CELLIER"
+ DATA "Lord Stannis","Melisandre","PRISON","VIVARIUM"
+ DATA "Sir Loras","Lady MAERGERY","PRISON","COFFRES"
+ DATA "Asha Greyjoy","Theon Greyjoy","PRISON","CELLIER"
+ DATA "Petyr","Lady Sansa","SKY CELL","MOON DOOR"
+ DATA "Lord Tyrion","Lord Tywin","PRISON","CHAPELLE"
+ DATA "Lord Brynden","PORCHERIE","PRISON","Cuisines"
+ DATA "Lord Starck","Master Luwin","RANGER","CASTLEBLACK","- SUD -","- NORD -"
+ DATA Chevalier,Mercenaire,Ranger,Sorcier,Mestre,Septon
+ DATA "Aucune","KING'S LANDING",1, MARTELL,DORNE,5, BARATHEON
+ DATA "STORM'S END",3, TYRELL,HIGHGARDEN,2
+ DATA GREYJOY,PIKE,5, ARRYN,EYRIE,6, LANNISTER,CASTERLY ROC,1
+ DATA TULLY,RIVERRUN,4, STARK,WINTERFELL,7
+ DATA ARMURERIE,19,7, HERBORISTERIE,7,2, BAZAR,10,3, ANIMALERIE,7,5
+ DATA "sangsue royale","fleur de Lys","encre de poulpe"
+ DATA "rose du Val","huile du Roc","foie de truite"
+ DATA SOMMEIL, FEU, PIERRE, VENIN, SANG,  FOUDRE, LAVE, SEISME
+ DATA EAU, SERUM, MUSCLE, BOUCLIER, ELIXIR, ECRAN, VIE, MORT
+ DATA EPEE-FEU, FORCE, CHARME, VISION, GLACE, ILLUSION, VENT, DRAGON

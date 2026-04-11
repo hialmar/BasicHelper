@@ -1,0 +1,8 @@
+#labels
+ FORI=1TO10:PRINTI:NEXT
+ REM test
+ GOTO  test_0 
+ END
+test_0
+ PRINT "BONJOUR"
+ END
