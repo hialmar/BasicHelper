@@ -25,9 +25,9 @@
 400 CLS:L=23:GOSUB 10000'menu edition
 430 PRINT@6,3;"Prenom:  ";N$(P)
 440 PRINT@6,5;"Famille: ";M$(MP(P))
-440 PRINT@6,7;"Carriere:";C$(CP(P))
+445 PRINT@6,7;"Carriere:";C$(CP(P))
 450 PRINT@6,9;"Niveau:";NI(P)
-450 PRINT@6,11;"Points de Vie:";PV(P)
+455 PRINT@6,11;"Points de Vie:";PV(P)
 460 PRINT@6,13;"Bourse:";RI(P)"c.a"
 471 PRINT@6,15;"Capacite Combat:";CC(P)
 472 PRINT@6,16;"Capacite de Tir:";CT(P)
@@ -111,7 +111,7 @@
 6540 PV(P)=CPT
 6550 PRINT@20,11;PV(P)
 6560 'UNTIL ASC(A$)=10ORASC(A$)=11
-6560 ET(P)=CPT
+6570 ET(P)=CPT
 6590 RETURN
 6600 REM ARGENT
 6620 'REPEAT
