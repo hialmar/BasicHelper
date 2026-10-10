@@ -1,12 +1,17 @@
 #labels
- TEXT:CLS:PAPER 0:INK3:POKE48035,0:POKE#26A,PEEK(#26A)AND254
- S$="EDITEUR DE PERSONNAGE":GOSUB  editor_0 :PRINT@8,4;S$
+ TEXT:CLS:PAPER 0:INK3
+ POKE48035,0:POKE#26A,PEEK(#26A)AND254
+ S$="Characters Editor":GOSUB  editor_0 :PRINT@8,4;S$
  GOSUB  editor_1 
 editor_5
  REM EQUIPE
- CLS:PRINT@8,1;CHR$(145)CHR$(128)" * TYRANN 3 - EQUIPE *  "CHR$(144)
- L=3:PRINT@3,L;CHR$(145)CHR$(128)"PERSONNAGES  MAISON   CARRIERE NIV "CHR$(144)
- PRINT@3,L+1;CHR$(148)CHR$(128)" Argent     CC CT Fo Ag In FM PV  "CHR$(144):L=5:TE=0
+ L1$=" * TYRANN 3 - TEAM *  "
+ L2$="CHARACTER   HOUSE     CAREER   LEV"
+ L3$="Money       ML RC ST DX IG MS HP  "
+ CLS:PRINT@8,1;CHR$(145)CHR$(128)+L1$+CHR$(144)
+ L=3:PRINT@3,L;CHR$(145)CHR$(128)+L2$+CHR$(144)
+ PRINT@3,L+1;CHR$(148)CHR$(128)+L3$+CHR$(144)
+ L=5:TE=0
  FORI=1TO6
  IFCP(I)=1THENENC=131
  IFCP(I)=2THENENC=135
@@ -14,31 +19,34 @@ editor_5
  IFCP(I)=4THENENC=133
  IFCP(I)=5THENENC=132
  IFCP(I)=6THENENC=130
- PRINT@1,L;CHR$(ENC);I;N$(I);:PRINT@17,L;M$(MP(I)):PRINT@27,L;C$(CP(I))
+ PRINT@1,L;CHR$(ENC);I;N$(I);
+ PRINT@17,L;M$(MP(I)):PRINT@27,L;C$(CP(I))
  PRINT@37,L;NI(I)
  PRINT@4,L+1;STR$(RI(I));" ca"
- S$=STR$(CC(I))+STR$(CT(I))+STR$(FO(I))+STR$(AG(I))+STR$(IN(I))+STR$(FM(I))+STR$(PV(I))
+ S1$=STR$(CC(I))+STR$(CT(I))+STR$(FO(I))+STR$(AG(I))
+ S2$=STR$(IN(I))+STR$(FM(I))+STR$(PV(I))
+ S$=S1$+S2$
  PRINT@16,L+1;S$:L=L+3:TE=TE+RI(I)
- NEXTI:PRINT@3,L-1;CHR$(148);CHR$(128)" Argent     CC CT Fo Ag In FM PV   "CHR$(144)
+ NEXTI:PRINT@3,L-1;CHR$(148);CHR$(128)L3$CHR$(144)
  EN=4
- S$="EDITER QUEL HEROS (1-6) ?":GOSUB  editor_2 :PRINT@7,23;S$
- S$="Sauvegarder: 0":GOSUB  editor_0 :PRINT@10,24;S$
+ S$="CHOOSE HERO TO EDIT (1-6) ?":GOSUB  editor_2 :PRINT@5,23;S$
+ S$="Save Changes: 0 or Q)uit":GOSUB  editor_0 :PRINT@6,24;S$
  GOSUB  editor_3 :IF P=0THEN GOSUB editor_4 :GOTO editor_5 
 editor_17
  CLS:L=23:GOSUB  editor_6 'menu edition
- PRINT@6,3;"Prenom:  ";N$(P)
- PRINT@6,5;"Famille: ";M$(MP(P))
- PRINT@6,7;"Carriere:";C$(CP(P))
- PRINT@6,9;"Niveau:";NI(P)
- PRINT@6,11;"Points de Vie:";PV(P)
- PRINT@6,13;"Bourse:";RI(P)"c.a"
- PRINT@6,15;"Capacite Combat:";CC(P)
- PRINT@6,16;"Capacite de Tir:";CT(P)
- PRINT@6,17;"Force .........:";FO(P)
- PRINT@6,18;"Agilite .......:";AG(P)
+ PRINT@6,3;"Fst Name:";N$(P)
+ PRINT@6,5;"Lst Name: ";M$(MP(P))
+ PRINT@6,7;"Career:";C$(CP(P))
+ PRINT@6,9;"Level:";NI(P)
+ PRINT@6,11;"Health Pts:";PV(P)
+ PRINT@6,13;"Purse:";RI(P);"s."
+ PRINT@6,15;"Melee Combat   :";CC(P)
+ PRINT@6,16;"Ranged Combat  :";CT(P)
+ PRINT@6,17;"Strength ......:";FO(P)
+ PRINT@6,18;"Dexterity .....:";AG(P)
  PRINT@6,19;"Intelligence ..:";IN(P)
- PRINT@6,20;"Force Mentale..:";FM(P)
- S$="Fleches ou Q)uitter":GOSUB editor_0 :PRINT@4,22;S$
+ PRINT@6,20;"Mental Strength:";FM(P)
+ S$="Arrows or Q)uit":GOSUB editor_0 :PRINT@4,22;S$
  S$="M)odif":GOSUB editor_0 :MO$=S$
  S$="<- +>":GOSUB editor_0 :FLECHE$=S$
  REM EDITION
@@ -46,7 +54,7 @@ editor_17
 editor_18
  REPEAT
 editor_9
- PRINT@4,LI;"=>":IFLI<8THEN PRINT@X,LI;MO$ ELSE PRINT@X,LI;FLECHE$
+ PRINT@4,LI;"=>":IFLI<8THENPRINT@X,LI;MO$ELSEPRINT@X,LI;FL$
 editor_7
  GETA$
  IFA$<>"M"ANDA$<>"Q"ANDASC(A$)<8ANDASC(A$)>11THEN editor_7 
@@ -56,7 +64,7 @@ editor_7
  IFASC(A$)=11THENUP=1:GOSUB editor_8 :GOTO editor_9 
  UNTIL (LI<8ANDA$="M")ORA$="Q"OR(LI>7AND(ASC(A$)=8ORASC(A$)=9))
  IFA$="Q"THEN editor_5 
- PRINT@4,LI;"=>":IFLI<4THEN PRINT@X,LI;MO$ ELSE PRINT@X,LI;FLECHE$
+ PRINT@4,LI;"=>":IFLI<4THENPRINT@X,LI;MO$ELSEPRINT@X,LI;FL$
  IFLI<14 THEN ON L GOSUB  editor_10 , editor_11 , editor_12 , editor_13 , editor_14 , editor_15 
  IFLI>14 THEN GOSUB  editor_16 
  IFL<4THEN editor_17 ELSE editor_18 
@@ -69,10 +77,12 @@ editor_2
  S$=" "+CHR$(145)+CHR$(135)+S$+CHR$(131)+CHR$(144)
  RETURN
 editor_3
- GETA$:P=VAL(A$):IFP>6THENPING:GOTO  editor_3 
+ GETA$:IF A$="Q" OR A$="q" THEN END
+ P=VAL(A$):IFP>6THENPING:GOTO  editor_3 
  RETURN
 editor_19
- S$="< ESPACE > ":GOSUB editor_2 :PRINT@13,L;S$:GETA$:IF A$<>" "THEN editor_19 
+ S$="< SPACE > ":GOSUB editor_2 
+ PRINT@13,L;S$:GETA$:IF A$<>" "THEN editor_19 
  RETURN
 editor_8
  REM descend ou monte
@@ -91,7 +101,7 @@ editor_10
  PRINT@22,4;"=>";:INPUTN$(P):PING
  IFLEN(N$(P))<2THENZAP:GOTO  editor_10 
  IFLEN(N$(P))>10THENN$(P)=LEFT$(N$(P),10)
- NN$=N$(P):N$(P)=LEFT$(NN$,1)' Mise en minuscule du prLENnom
+ NN$=N$(P):N$(P)=LEFT$(NN$,1)
  FORI=2TOLEN(NN$)
  MI=ASC(MID$(NN$,I,1))
  IF MI>64 AND MI<91 THEN MI=MI+32
@@ -101,11 +111,12 @@ editor_10
  PRINT@22,4;"            "
  RETURN
 editor_11
- REM MAISON
+ REM HOUSES
  FORI=1TO9
  PRINT@25,4+I;I;M$(I):NEXT
 editor_22
- GETM$:M=VAL(M$):IFM<1ORM>9THENZAP:GOTO editor_22 
+ GETM$:M=VAL(M$)
+ IFM<1ORM>9THENZAP:GOTO editor_22 
  MP(P)=M:PING
  RETURN
 editor_12
@@ -113,38 +124,32 @@ editor_12
  FORI=1TO6
  PRINT@25,6+I;I;C$(I):NEXT
 editor_23
- GETM$:C=VAL(M$):IFC<1ORC>6THENZAP:GOTO editor_23 
+ GETM$:C=VAL(M$)
+ IFC<1ORC>6THENZAP:GOTO editor_23 
  CP(P)=C:PING
  RETURN
 editor_13
- REM NIVEAU
- 'REPEAT
+ REM LEVEL
  CPT=NI(P):MAX=8:MIN=1:BO=1:GOSUB  editor_24 
  NI(P)=CPT
  PRINT@13,9;NI(P)
- 'UNTIL ASC(A$)=10ORASC(A$)=11
  RETURN
 editor_14
- REM PV
- 'REPEAT
+ REM HP
  CPT=PV(P):MAX=99:MIN=1:BO=1:GOSUB  editor_24 
  PV(P)=CPT
  PRINT@20,11;PV(P)
- 'UNTIL ASC(A$)=10ORASC(A$)=11
  ET(P)=CPT
  RETURN
 editor_15
- REM ARGENT
- 'REPEAT
+ REM MONEY
  CPT=RI(P):MAX=90000:MIN=1000:BO=1000:GOSUB  editor_24 
  RI(P)=CPT
  PRINT@14,13;RI(P)"c a "
  PING
- 'UNTIL ASC(A$)=10ORASC(A$)=11
  RETURN
 editor_16
  REM CARACS
- 'REPEAT
  ON LI-14 GOTO  editor_25 , editor_26 , editor_27 , editor_28 , editor_29 , editor_30 
 editor_25
  CPT=CC(P):GOTO editor_31 
@@ -176,29 +181,29 @@ editor_37
 editor_38
  PRINT@22,LI;CPT
  PING
- 'UNTIL ASC(A$)=10ORASC(A$)=11
  RETURN
 editor_24
  REM incrementeur
- 'GETA$:IFASC(A$)<8ORASC(A$)>11THENZAP:GOTO7010
  IFASC(A$)=10ORASC(A$)=11THENRETURN
  IFASC(A$)=9THEN CPT=CPT+BO ELSE CPT=CPT-BO
  IF CPT > MAX THEN CPT=MAX
  IF CPT < MIN THEN CPT=MIN
  RETURN
- END
 editor_6
  CLS:PRINT
- PRINT" ************************************"
+ PRINT" ******************
  FORI=1TOL:PRINT@2,I;"*":PRINT@38,I;"*":NEXTI
- PRINT@2,I;"*************************************"
+ PRINT@2,I;"*************
  RETURN
 editor_4
  REM SAUVEGARDE
- PRINT@5,24;"SUR DE SAUVEGARDER (O/N) ?"
+ S$="SURE YOU WANT TO SAVE CHANGES ?":GOSUB editor_2 
+ PRINT@3,23;S$
+ S$="             (Y/N)             ":GOSUB editor_2 
+ PRINT@3,24;S$
 editor_39
  A$=KEY$:IFA$=""THEN editor_39 
- IFA$<>"O"THEN  editor_5 
+ IFA$<>"Y"THEN  editor_5 
  ZAP:GOSUB  editor_40 
  RETURN
 editor_1
@@ -206,10 +211,10 @@ editor_1
  FORI=1TO9:READ M$(I):NEXTI:
  DIM CB(20),IT$(48)
  'RECALL IT$,"T-ITEMS",S
- PRINT@5,24;"INSEREZ LA DISQUETTE PRINCIPALE"
- PRINT@5,25;"DANS LE LECTEUR ET TAPEZ ESPACE"
+ PRINT@5,24;"INSERT DISK IN DRIVE"
 editor_41
- IF KEY$<>" " THEN  editor_41 
+ PRINT@5,25;"  THEN PRESS SPACE"
+ IFKEY$<>" "THENGOTO editor_41 
  GOSUB editor_42 
  LOAD"TEAM.BIN"
  O1=#A000
@@ -220,7 +225,6 @@ editor_41
  O1=O1+1:S=PEEK(O1)
  O1=O1+1:CA=PEEK(O1)
  O1=O1+1:VIL=PEEK(O1)
- REM PRINT"Ville " VIL "X " X "Y " Y "S " S "CA " CA
  FOR P=1TO6
  O1=O1+1:DD=PEEK(O1)
  FORJ=1TODD:O1=O1+1:N$(P)=N$(P)+CHR$(PEEK(O1)):NEXTJ
@@ -232,7 +236,7 @@ editor_41
  O1=O1+1:AG(P)=PEEK(O1)
  O1=O1+1:IN(P)=PEEK(O1)
  O1=O1+1:FM(P)=PEEK(O1)
- O1=O1+1:PV(P)=PEEK(O1)::GOSUB editor_43 
+ O1=O1+1:PV(P)=PEEK(O1):GOSUB editor_43 
  O1=O1+1:ET(P)=PEEK(O1)
  O1=O1+1:OK(P)=PEEK(O1)
  O1=O1+1:NI(P)=PEEK(O1)
@@ -255,10 +259,11 @@ editor_41
  O1=O1+1:TL=PEEK(O1):'PRINT "TL";TL:REM FR = FRE("")
  O1=O1+1:NP=PEEK(O1)
  O1=O1+1:NF=PEEK(O1)
- O1=O1+1:PM=PEEK(O1)::GOSUB editor_43 
+ O1=O1+1:PM=PEEK(O1):GOSUB editor_43 
  RETURN
 editor_40
- TEXT:CLS:PRINT@8,2;CHR$(145);CHR$(135);"++ PREPARE L EQUIPE ++ ";CHR$(144)
+ TEXT:CLS
+ PRINT@8,2;CHR$(145);CHR$(135);"+ TEAM PREP + ";CHR$(144)
  O1=#A000::GOSUB editor_44 
  O1=O1+1:POKEO1,1
  O1=O1+1:POKEO1,X
@@ -306,13 +311,13 @@ editor_40
  REM SAVEU "TEAM2.BIN",A#A000,EO1
  RETURN
 editor_42
- CLS:PRINT@7,8;".. Chargement * Patientez .."
+ CLS:PRINT@7,8;"<<< Loading <<< Wait <<<"
  S$=CHR$(148)+" "+CHR$(144):CU=1:GOTO editor_43 
 editor_44
- PRINT@7,8;"++ Sauvegarde + Patientez ++"
+ PRINT@7,8;">>> Saving >>> Wait  >>>"
  S$=CHR$(145)+" "+CHR$(144):CU=1
 editor_43
  CU=CU+2:PRINT@CU,9;S$:REM FR = FRE("")
  RETURN
- DATA Chevalier,Mercenaire,Ranger,Sorcier,Mestre,Septon
- DATA Aucune,MARTELL,BARATHEON,TYRELL,GREYJOY,ARRYN,LANNISTER,TULLY,STARK
+ DATA Knight,Mercenary,Ranger,Sorcerer,Maestre,Septon
+ DATA None,MARTELL,BARATHEON,TYRELL,GREYJOY,ARRYN,LANNISTER,TULLY,STARK
