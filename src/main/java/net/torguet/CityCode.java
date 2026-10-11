@@ -1,28 +1,45 @@
 package net.torguet;
 
+import java.io.IOException;
+
 public class CityCode {
-    private String start;
-    private String initVars;
-    private String checkAround;
-    private String mapCommon;
-    private String implCar;
-    private String affText;
-    private String whyNoScroll;
-    private String noPasaran;
-    private String printCityName;
-    private String mapData;
-    private String ptrLines;
-    private String tiles;
-    private String texts;
-    private String header;
-    private String nameData;
-    private String charRedefine;
+    private MultiLineData start;
+    private MultiLineData initVars;
+    private MultiLineData checkAround;
+    private MultiLineData tuileSpeciale;
+    private MultiLineData implCar;
+    private MultiLineData affText;
+    private MultiLineData whyNoScroll;
+    private MultiLineData noPasaran;
+    private MultiLineData printCityName;
+    private MultiLineData mapData;
+    private MultiLineData ptrLines;
+    private MultiLineData tiles;
+    private MultiLineData texts;
+    private MultiLineData header;
+    private MultiLineData nameData;
+    private MultiLineData charRedefine;
+
+    private AsmFile referenceFile;
+    private AsmFile specificFile;
 
     public CityCode(String fileName){
-
+        referenceFile = new AsmFile(fileName);
     }
 
-    public void pourSpecialData(String filenName) {
+    public void processReferenceFile() throws IOException {
+        referenceFile.processFile();
 
+        start = referenceFile.get("#define");
+        initVars = referenceFile.get("init_div_var");
+        checkAround = referenceFile.get("chck_around");
+        tuileSpeciale = referenceFile.get("tuile_speciale");
+        implCar = referenceFile.get("impl_car");
+        affText = null;
+    }
+
+    public void pourSpecialData(String fileName) throws IOException {
+        specificFile = new AsmFile(fileName);
+        specificFile.processFile();
     }
 }
