@@ -1,6 +1,8 @@
 package net.torguet;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -27,22 +29,30 @@ public class AsmFile {
 
         ArrayList<String> currentElement = new ArrayList<>();
         String firstLabel = null;
+        boolean afterLabel = true;
 
         for(String line : lines) {
             line = manageEmptyLines(line);
 
             if (line.isEmpty()) {
-                // empty line
-                if (currentElement.size()>1) {
-                    MultiLineData lineData = new MultiLineData(currentElement, firstLabel);
-                    lineDataArrayList.add(lineData);
-                }
-                firstLabel = null;
-                currentElement = new ArrayList<>();
+                // empty line, skip
             } else if (line.startsWith(" ") || line.startsWith("\t")) {
                 // normal line
                 currentElement.add(line);
             } else if (line.startsWith(";")) {
+                if (afterLabel &&
+                        (line.startsWith(";---") || line.startsWith("; ---") ||
+                                line.startsWith(";***")  || line.startsWith("; ***")))
+                {
+                    // changing part
+                    if (currentElement.size()>1) {
+                        MultiLineData lineData = new MultiLineData(currentElement, firstLabel);
+                        lineDataArrayList.add(lineData);
+                    }
+                    firstLabel = null;
+                    afterLabel = false;
+                    currentElement = new ArrayList<>();
+                }
                 // comment
                 currentElement.add(line);
             } else {
@@ -50,6 +60,27 @@ public class AsmFile {
                 if (firstLabel == null)
                     firstLabel = line;
                 currentElement.add(line);
+                afterLabel = true;
+            }
+        }
+
+        // last part
+        if (currentElement.size()>1) {
+            MultiLineData lineData = new MultiLineData(currentElement, firstLabel);
+            lineDataArrayList.add(lineData);
+        }
+    }
+
+    public void writeToFile(String newFileName) throws IOException {
+        try (PrintWriter printWriter = new PrintWriter(new FileWriter(newFileName))) {
+            for(MultiLineData multiLineData : this.lineDataArrayList) {
+                printWriter.println(";--- <<< First Label "+multiLineData.firstLabel+" >>>");
+                for(String line : multiLineData.lines) {
+                    printWriter.println(line);
+                }
+                printWriter.println();
+                printWriter.println();
+                printWriter.println();
             }
         }
     }
@@ -64,8 +95,13 @@ public class AsmFile {
     }
 
     public static void main(String[] args) throws IOException {
-        AsmFile asmFile = new AsmFile("src/main/resources/Ville_3.s");
+//        AsmFile asmFile = new AsmFile("src/main/resources/Ville_3.s");
+//        asmFile.processFile();
+//        asmFile.writeToFile("src/main/resources/Ville_3_processed.s");
+
+
+        AsmFile asmFile = new AsmFile("src/main/resources/map_ville1.s");
         asmFile.processFile();
-        System.out.println(asmFile);
+        asmFile.writeToFile("src/main/resources/map_ville1_processed.s");
     }
 }
