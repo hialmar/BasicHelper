@@ -1,5 +1,12 @@
 package net.torguet;
 
-public class CityCodeGenerator {
+import java.io.IOException;
 
+public class CityCodeGenerator {
+    public static void main(String[] args) throws IOException {
+        CityCode cityCode = new CityCode("src/main/resources/map_ville1.s");
+        cityCode.processReferenceFile();
+        cityCode.pourSpecialData("src/main/resources/Ville_3.s");
+        cityCode.generateCityCode("src/main/resources/map_ville3.s");
+    }
 }

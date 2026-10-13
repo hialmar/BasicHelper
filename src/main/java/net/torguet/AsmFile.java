@@ -128,14 +128,15 @@ public class AsmFile {
     }
 
     public static void main(String[] args) throws IOException {
-//        AsmFile asmFile = new AsmFile("src/main/resources/Ville_3.s");
-//        asmFile.processFile();
-//        asmFile.writeToFile("src/main/resources/Ville_3_processed.s");
+        AsmFile asmFile = new AsmFile("src/main/resources/Ville_3.s");
+        asmFile.processFile();
+        asmFile.writeToFile("src/main/resources/Ville_3_processed.s");
 
-
+/*
         AsmFile asmFile = new AsmFile("src/main/resources/map_ville1.s");
         asmFile.processFile();
         asmFile.writeToFile("src/main/resources/map_ville1_processed.s");
+ */
     }
 
     public MultiLineData get(String label) {
