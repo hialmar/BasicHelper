@@ -57,36 +57,15 @@ public class CityCode {
         charRedefine = specificFile.get("dta_car_redef_p1");
         texts = specificFile.get("t_portail_1");
 
-        String define = start.lines.getFirst();
-        int numberIndex = define.indexOf('0');
-        if (numberIndex > 0) {
-            int underScoreIndex = fileName.lastIndexOf("_");
-            int dotIndex = fileName.lastIndexOf(".");
-            if (underScoreIndex > 0 && dotIndex > 0) {
-                int cityNumber = Integer.parseInt(fileName.substring(underScoreIndex+1, dotIndex));
-                cityNumber = (cityNumber-1)*2;
-                define = define.substring(0, numberIndex) + cityNumber;
-                start.lines.removeFirst();
-                start.lines.addFirst(define);
-            }
-        }
+        manageCityDefine(fileName);
 
-        LabelDescriptor coffre2Old = referenceFile.getLabelDescriptor("t_coffre_2");
-        LabelDescriptor coffre2 = specificFile.getLabelDescriptor("t_coffre_2");
-        if(coffre2Old != null && coffre2 != null) {
-            texts.replaceNextLines(coffre2, coffre2Old, 2, 3);
-        }
+        hideKeysAndChests(specificFile);
 
-        LabelDescriptor voleurOld = referenceFile.getLabelDescriptor("t_voleur_1");
-        LabelDescriptor voleur = specificFile.getLabelDescriptor("t_voleur_1");
-        if(voleurOld != null && voleur == null) {
-            LabelDescriptor suiteCle = referenceFile.getLabelDescriptor("suite_clef");
-            LabelDescriptor suiteVoleur = referenceFile.getLabelDescriptor("suite_voleur");
-            affText.copyLines(suiteCle.lineNumberInMultiLine()-1, suiteVoleur.lineNumberInMultiLine()-1, 1);
-            affText.removeLines(suiteCle.lineNumberInMultiLine(),1);
-            voleur = referenceFile.getLabelDescriptor("voleur_");
-            affText.removeLines(voleur.lineNumberInMultiLine(), 40);
-        }
+        manageChestTexts(specificFile);
+        // ATTENTION, les Labels dans texts ont tous bougé.
+
+        manageThief(specificFile);
+        // ATTENTION, les Labels dans affText ont tous bougé.
 
         multiLineDataArrayList = new ArrayList<>();
         multiLineDataArrayList.add(start);
@@ -102,6 +81,89 @@ public class CityCode {
         multiLineDataArrayList.add(texts);
         multiLineDataArrayList.add(addedSymbols);
         multiLineDataArrayList.add(charRedefine);
+    }
+
+    private void hideKeysAndChests(AsmFile specificFile) {
+        LabelDescriptor cle1 = referenceFile.getLabelDescriptor("suite_init1");
+        LabelDescriptor line0 = specificFile.getLabelDescriptor("_L00");
+        TileDescriptor keyTile1 = mapData.searchTile("$54", line0.lineNumberInMultiLine());
+        if (cle1 != null && keyTile1 != null)
+            initVars.hideTile(cle1, keyTile1);
+        System.out.println("key1: "+keyTile1);
+        TileDescriptor keyTile2 = mapData.searchTile("$55", line0.lineNumberInMultiLine());
+        System.out.println("key2: "+keyTile2);
+        LabelDescriptor cle2 = referenceFile.getLabelDescriptor("suite_init2");
+        if (cle2 != null && keyTile2 != null)
+            initVars.hideTile(cle2, keyTile2);
+        int startChest = line0.lineNumberInMultiLine();
+        System.out.println("Chests");
+        TileDescriptor chestTile = mapData.searchTile("$63", startChest);
+        System.out.println("Chest: "+chestTile);
+        LabelDescriptor chest1 = referenceFile.getLabelDescriptor("suite_init2_2");
+        if (chest1 != null && chestTile != null) {
+            initVars.hideTile(chest1, chestTile);
+            chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
+            System.out.println("Chest: " + chestTile);
+            LabelDescriptor chest2 = referenceFile.getLabelDescriptor("suite_init3");
+            if (chest2 != null && chestTile != null) {
+                initVars.hideTile(chest2, chestTile);
+                chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
+                System.out.println("Chest: " + chestTile);
+                LabelDescriptor chest3 = referenceFile.getLabelDescriptor("suite_init4");
+                if (chest3 != null && chestTile != null) {
+                    initVars.hideTile(chest3, chestTile);
+                    chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
+                    System.out.println("Chest: " + chestTile);
+                    LabelDescriptor chest4 = referenceFile.getLabelDescriptor("suite_init5");
+                    if (chest4 != null && chestTile != null) {
+                        initVars.hideTile(chest4, chestTile);
+                        chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
+                        System.out.println("Chest: " + chestTile);
+                        LabelDescriptor chest5 = referenceFile.getLabelDescriptor("suite_init6");
+                        if (chest5 != null && chestTile != null) {
+                            initVars.hideTile(chest5, chestTile);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void manageThief(AsmFile specificFile) {
+        LabelDescriptor voleurOld = referenceFile.getLabelDescriptor("t_voleur_1");
+        LabelDescriptor voleur = specificFile.getLabelDescriptor("t_voleur_1");
+        if(voleurOld != null && voleur == null) {
+            LabelDescriptor suiteCle = referenceFile.getLabelDescriptor("suite_clef");
+            LabelDescriptor suiteVoleur = referenceFile.getLabelDescriptor("suite_voleur");
+            affText.copyLines(suiteCle.lineNumberInMultiLine()-1, suiteVoleur.lineNumberInMultiLine()-1, 1);
+            affText.removeLines(suiteCle.lineNumberInMultiLine(),1);
+            voleur = referenceFile.getLabelDescriptor("voleur_");
+            affText.removeLines(voleur.lineNumberInMultiLine(), 40);
+        }
+    }
+
+    private void manageChestTexts(AsmFile specificFile) {
+        LabelDescriptor coffre2Old = referenceFile.getLabelDescriptor("t_coffre_2");
+        LabelDescriptor coffre2 = specificFile.getLabelDescriptor("t_coffre_2");
+        if(coffre2Old != null && coffre2 != null) {
+            texts.replaceNextLines(coffre2, coffre2Old, 2, 3);
+        }
+    }
+
+    private void manageCityDefine(String fileName) {
+        String define = start.lines.getFirst();
+        int numberIndex = define.indexOf('0');
+        if (numberIndex > 0) {
+            int underScoreIndex = fileName.lastIndexOf("_");
+            int dotIndex = fileName.lastIndexOf(".");
+            if (underScoreIndex > 0 && dotIndex > 0) {
+                int cityNumber = Integer.parseInt(fileName.substring(underScoreIndex+1, dotIndex));
+                cityNumber = (cityNumber-1)*2;
+                define = define.substring(0, numberIndex) + cityNumber;
+                start.lines.removeFirst();
+                start.lines.addFirst(define);
+            }
+        }
     }
 
     public void generateCityCode(String fileName) throws IOException {

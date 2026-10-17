@@ -82,13 +82,7 @@ public class AsmFile {
             } else if (!line.isEmpty()) {
                 // label
                 // get only the label
-                String label;
-                int min = getMin(line);
-                if (min>0) {
-                    label = line.substring(0,min);
-                } else {
-                    label = line;
-                }
+                String label = getLabel(line);
                 if (firstLabel == null) {
                     firstLabel = label;
                 }
@@ -114,7 +108,18 @@ public class AsmFile {
         }
     }
 
-    private static int getMin(String line) {
+    public static String getLabel(String line) {
+        String label;
+        int min = getLabelEndIndex(line);
+        if (min>0) {
+            label = line.substring(0,min);
+        } else {
+            label = line;
+        }
+        return label;
+    }
+
+    private static int getLabelEndIndex(String line) {
         int min = line.indexOf(';');
         int whiteSpace = line.indexOf(' ');
         if (whiteSpace>0) {
