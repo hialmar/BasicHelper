@@ -451,7 +451,7 @@ garde_
 	lda tuile_sous_pos_perso			; valeur tuile sous perso
 	cmp #$58				; valeur tuile pour garde 
 	beq suite_garde
-	jmp legat_
+	jmp entrance_	
 suite_garde
 	jsr eff_tuile_spe
 	ldx #$00
@@ -484,65 +484,6 @@ ldx #$00
 	jsr eff_text
 	rts	
 ;-------------------------------------------------
-legat_
-	lda tuile_sous_pos_perso			; valeur tuile sous perso
-	cmp #$59				; valeur tuile pour legat qui donne bourse
-	beq suite_legat
-	jmp entrance_	
-suite_legat
-	jsr eff_tuile_spe
-	lda laisser_passer
-	beq suite_legat2
-	rts
-suite_legat2	
-	ldx #VILLE
-	lda _team_cles,x
-	ora #8
-	sta _team_cles,x
-	sta laisser_passer
-	lda t_legat_1,x
-	sta adr_ecr_txt+1
-	lda #<t_legat_1+1
-	sta write_phrase+1
-	lda #>t_legat_1+1
-	sta write_phrase+2
-	jsr write_phrase	
-	ldx #$00
-	lda t_legat_2,x
-	sta adr_ecr_txt+1
-	lda #<t_legat_2+1
-	sta write_phrase+1
-	lda #>t_legat_2+1
-	sta write_phrase+2
-	jsr write_phrase	
-	jsr hit_release_key
-	jsr eff_text
-	ldx #$00
-	lda t_legat_3,x
-	sta adr_ecr_txt+1
-	lda #<t_legat_3+1
-	sta write_phrase+1
-	lda #>t_legat_3+1
-	sta write_phrase+2
-	jsr write_phrase	
-	jsr hit_release_key
-	jsr eff_text
-	; on ajoute 20000 ses = 4e20 en hex 
-	clc
-	lda _character_ri
-	adc #$20
-	sta _character_ri
-	lda _character_ri+1
-	adc #$4e
-	sta _character_ri+1
-	bcs overflow
-	rts
-overflow ; on met le max
-	lda #$ff
-	sta _character_ri
-	sta _character_ri+1
-	rts
-;-------------------------------------------------	
 entrance_
 	lda tuile_sous_pos_perso			; valeur tuile sous perso
 	cmp #$51				; valeur entrée ville

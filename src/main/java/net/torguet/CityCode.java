@@ -64,7 +64,7 @@ public class CityCode {
         manageChestTexts(specificFile);
         // ATTENTION, les Labels dans texts ont tous bougé.
 
-        manageThief(specificFile);
+        manageAffText(specificFile);
         // ATTENTION, les Labels dans affText ont tous bougé.
 
         multiLineDataArrayList = new ArrayList<>();
@@ -129,7 +129,7 @@ public class CityCode {
         }
     }
 
-    private void manageThief(AsmFile specificFile) {
+    private void manageAffText(AsmFile specificFile) {
         LabelDescriptor animalerieOld = referenceFile.getLabelDescriptor("t_animalerie_1");
         LabelDescriptor animalerie = specificFile.getLabelDescriptor("t_animalerie_1");
         if(animalerieOld != null && animalerie == null) {
@@ -139,6 +139,18 @@ public class CityCode {
             affText.removeLines(labelHerbo.lineNumberInMultiLine()+4,1);
             affText.removeLines(labelAnimalerie.lineNumberInMultiLine(), 19);
         }
+
+        LabelDescriptor legatOld = referenceFile.getLabelDescriptor("t_legat_1");
+        LabelDescriptor legat = specificFile.getLabelDescriptor("t_legat_1");
+        if(legatOld != null && legat == null) {
+            LabelDescriptor suiteGarde = referenceFile.getLabelDescriptor("suite_garde");
+            LabelDescriptor suiteLegat = referenceFile.getLabelDescriptor("suite_legat");
+            affText.copyLines(suiteGarde.lineNumberInMultiLine()-1, suiteLegat.lineNumberInMultiLine()-1, 1);
+            affText.removeLines(suiteGarde.lineNumberInMultiLine(),1);
+            legat = referenceFile.getLabelDescriptor("legat_");
+            affText.removeLines(legat.lineNumberInMultiLine(), 59);
+        }
+
 
         LabelDescriptor voleurOld = referenceFile.getLabelDescriptor("t_voleur_1");
         LabelDescriptor voleur = specificFile.getLabelDescriptor("t_voleur_1");
