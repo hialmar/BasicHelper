@@ -13,9 +13,26 @@ public class AsmFile {
     private final String fileName;
     private final ArrayList<MultiLineData> multiLineDataArrayList = new ArrayList<>();
     private final HashMap<String, MultiLineData> multiLineDataHashMap = new HashMap<>();
+    private final HashMap<String, LabelDescriptor> labelDescriptorHashMap = new HashMap<>();
 
     public AsmFile(String fileName) {
         this.fileName = fileName;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public ArrayList<MultiLineData> getMultiLineDataArrayList() {
+        return multiLineDataArrayList;
+    }
+
+    public HashMap<String, MultiLineData> getMultiLineDataHashMap() {
+        return multiLineDataHashMap;
+    }
+
+    public HashMap<String, LabelDescriptor> getLabelDescriptorHashMap() {
+        return labelDescriptorHashMap;
     }
 
     @Override
@@ -34,6 +51,7 @@ public class AsmFile {
         boolean afterLabel = true;
 
         int i = 0;
+        int lineNumberInMultiLineData = 0;
         String line = lines.get(i);
         String nextLine = lines.get(i+1);
         while(i < lines.size()) {
@@ -41,6 +59,7 @@ public class AsmFile {
             if (line.startsWith(" ") || line.startsWith("\t")) {
                 // normal line
                 currentElement.add(line);
+                lineNumberInMultiLineData++;
             } else if (line.startsWith(";")) {
                 if (afterLabel &&
                         (line.startsWith(";---") || line.startsWith("; ---") ||
@@ -54,38 +73,29 @@ public class AsmFile {
                         firstLabel = null;
                         afterLabel = false;
                         currentElement = new ArrayList<>();
+                        lineNumberInMultiLineData = 0;
                     }
                 }
                 // comment
                 currentElement.add(line);
+                lineNumberInMultiLineData++;
             } else if (!line.isEmpty()) {
                 // label
+                // get only the label
+                String label;
+                int min = getMin(line);
+                if (min>0) {
+                    label = line.substring(0,min);
+                } else {
+                    label = line;
+                }
                 if (firstLabel == null) {
-                    // get only the label
-                    int min = line.indexOf(';');
-                    int whiteSpace = line.indexOf(' ');
-                    if (whiteSpace>0) {
-                        if (min < 0) {
-                            min = whiteSpace;
-                        } else if (whiteSpace<min) {
-                            min = whiteSpace;
-                        }
-                    }
-                    int tab = line.indexOf('\t');
-                    if (tab>0) {
-                        if (min < 0) {
-                            min = tab;
-                        } else if (tab<min) {
-                            min = tab;
-                        }
-                    }
-                    if (min>0) {
-                        firstLabel = line.substring(0,min);
-                    } else {
-                        firstLabel = line;
-                    }
+                    firstLabel = label;
                 }
                 currentElement.add(line);
+                LabelDescriptor labelDescriptor = new LabelDescriptor(currentElement, lineNumberInMultiLineData, i);
+                labelDescriptorHashMap.put(label, labelDescriptor);
+                lineNumberInMultiLineData++;
                 afterLabel = true;
             }
 
@@ -102,6 +112,27 @@ public class AsmFile {
             multiLineDataHashMap.put(firstLabel, lineData);
             multiLineDataArrayList.add(lineData);
         }
+    }
+
+    private static int getMin(String line) {
+        int min = line.indexOf(';');
+        int whiteSpace = line.indexOf(' ');
+        if (whiteSpace>0) {
+            if (min < 0) {
+                min = whiteSpace;
+            } else if (whiteSpace<min) {
+                min = whiteSpace;
+            }
+        }
+        int tab = line.indexOf('\t');
+        if (tab>0) {
+            if (min < 0) {
+                min = tab;
+            } else if (tab<min) {
+                min = tab;
+            }
+        }
+        return min;
     }
 
     public void writeToFile(String newFileName) throws IOException {
@@ -141,5 +172,9 @@ public class AsmFile {
 
     public MultiLineData get(String label) {
         return this.multiLineDataHashMap.get(label);
+    }
+
+    public LabelDescriptor getLabelDescriptor(String label) {
+        return labelDescriptorHashMap.get(label);
     }
 }

@@ -57,6 +57,37 @@ public class CityCode {
         charRedefine = specificFile.get("dta_car_redef_p1");
         texts = specificFile.get("t_portail_1");
 
+        String define = start.lines.getFirst();
+        int numberIndex = define.indexOf('0');
+        if (numberIndex > 0) {
+            int underScoreIndex = fileName.lastIndexOf("_");
+            int dotIndex = fileName.lastIndexOf(".");
+            if (underScoreIndex > 0 && dotIndex > 0) {
+                int cityNumber = Integer.parseInt(fileName.substring(underScoreIndex+1, dotIndex));
+                cityNumber = (cityNumber-1)*2;
+                define = define.substring(0, numberIndex) + cityNumber;
+                start.lines.removeFirst();
+                start.lines.addFirst(define);
+            }
+        }
+
+        LabelDescriptor coffre2Old = referenceFile.getLabelDescriptor("t_coffre_2");
+        LabelDescriptor coffre2 = specificFile.getLabelDescriptor("t_coffre_2");
+        if(coffre2Old != null && coffre2 != null) {
+            texts.replaceNextLines(coffre2, coffre2Old, 2, 3);
+        }
+
+        LabelDescriptor voleurOld = referenceFile.getLabelDescriptor("t_voleur_1");
+        LabelDescriptor voleur = specificFile.getLabelDescriptor("t_voleur_1");
+        if(voleurOld != null && voleur == null) {
+            LabelDescriptor suiteCle = referenceFile.getLabelDescriptor("suite_clef");
+            LabelDescriptor suiteVoleur = referenceFile.getLabelDescriptor("suite_voleur");
+            affText.copyLines(suiteCle.lineNumberInMultiLine()-1, suiteVoleur.lineNumberInMultiLine()-1, 1);
+            affText.removeLines(suiteCle.lineNumberInMultiLine(),1);
+            voleur = referenceFile.getLabelDescriptor("voleur_");
+            affText.removeLines(voleur.lineNumberInMultiLine(), 40);
+        }
+
         multiLineDataArrayList = new ArrayList<>();
         multiLineDataArrayList.add(start);
         multiLineDataArrayList.add(initVars);
