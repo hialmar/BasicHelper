@@ -95,35 +95,61 @@ public class CityCode {
         LabelDescriptor cle2 = referenceFile.getLabelDescriptor("suite_init2");
         if (cle2 != null && keyTile2 != null)
             initVars.hideTile(cle2, keyTile2);
-        int startChest = line0.lineNumberInMultiLine();
-        System.out.println("Chests");
-        TileDescriptor chestTile = mapData.searchTile("$63", startChest);
-        System.out.println("Chest: "+chestTile);
+        TileDescriptor chestTile = mapData.searchTile("$57", line0.lineNumberInMultiLine());
+        System.out.println("Mdp: "+chestTile);
         LabelDescriptor chest1 = referenceFile.getLabelDescriptor("suite_init2_2");
-        if (chest1 != null && chestTile != null) {
+        if (chest1 != null && chestTile != null)
             initVars.hideTile(chest1, chestTile);
+        System.out.println("Chests");
+        chestTile = mapData.searchTile("$63", line0.lineNumberInMultiLine());
+        System.out.println("Chest: " + chestTile);
+        LabelDescriptor chest2 = referenceFile.getLabelDescriptor("suite_init3");
+        if (chest2 != null && chestTile != null) {
+            initVars.hideTile(chest2, chestTile);
+            manageChestUpdate(0, chestTile);
             chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
             System.out.println("Chest: " + chestTile);
-            LabelDescriptor chest2 = referenceFile.getLabelDescriptor("suite_init3");
-            if (chest2 != null && chestTile != null) {
-                initVars.hideTile(chest2, chestTile);
+            LabelDescriptor chest3 = referenceFile.getLabelDescriptor("suite_init4");
+            if (chest3 != null && chestTile != null) {
+                initVars.hideTile(chest3, chestTile);
+                manageChestUpdate(1, chestTile);
                 chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
                 System.out.println("Chest: " + chestTile);
-                LabelDescriptor chest3 = referenceFile.getLabelDescriptor("suite_init4");
-                if (chest3 != null && chestTile != null) {
-                    initVars.hideTile(chest3, chestTile);
+                LabelDescriptor chest4 = referenceFile.getLabelDescriptor("suite_init5");
+                if (chest4 != null && chestTile != null) {
+                    initVars.hideTile(chest4, chestTile);
+                    manageChestUpdate(2, chestTile);
                     chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
                     System.out.println("Chest: " + chestTile);
-                    LabelDescriptor chest4 = referenceFile.getLabelDescriptor("suite_init5");
-                    if (chest4 != null && chestTile != null) {
-                        initVars.hideTile(chest4, chestTile);
-                        chestTile = mapData.searchTile("$63", chestTile.lineDataOffset);
-                        System.out.println("Chest: " + chestTile);
-                        LabelDescriptor chest5 = referenceFile.getLabelDescriptor("suite_init6");
-                        if (chest5 != null && chestTile != null) {
-                            initVars.hideTile(chest5, chestTile);
-                        }
+                    LabelDescriptor chest5 = referenceFile.getLabelDescriptor("suite_init6");
+                    if (chest5 != null && chestTile != null) {
+                        initVars.hideTile(chest5, chestTile);
+                        manageChestUpdate(3, chestTile);
                     }
+                }
+            }
+        }
+    }
+
+    private void manageChestUpdate(int chestNumber, TileDescriptor chestTile) {
+        String label = switch (chestNumber) {
+            case 0 -> "suite_overflow";
+            case 1 -> "suite_coffre1";
+            case 2 -> "suite_coffre2";
+            default -> "suite_coffre3";
+        };
+        LabelDescriptor chest = referenceFile.getLabelDescriptor(label);
+        if (chest != null) {
+            int lIndex = chestTile.lineLabel.indexOf("L");
+            if (lIndex>0) {
+                String numLigne = chestTile.lineLabel.substring(lIndex + 1);
+                int num = Integer.parseInt(numLigne);
+                String cmpLine = affText.lines.get(chest.lineNumberInMultiLine() + 2);
+                int hashIndex = cmpLine.indexOf('#');
+                if (hashIndex>0) {
+                    String newCmpLine = cmpLine.substring(0, hashIndex+1) + num;
+                    affText.lines.add(chest.lineNumberInMultiLine() + 2, newCmpLine);
+                    affText.lines.remove(chest.lineNumberInMultiLine() + 3);
                 }
             }
         }
