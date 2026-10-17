@@ -49,17 +49,17 @@ suite_init1
 suite_init2
 	lda mot_de_passe
 	beq suite_init2_2
-	ldx #28
+	ldx #19
 	lda #0
-	sta _L01,x
+	sta _L17,x
 suite_init2_2
 	ldx #VILLE
 	lda _team_combats_coffres,x
 	and #1
 	beq suite_init3
-	ldx #19
+	ldx #28
 	lda #0
-	sta _L10,x
+	sta _L01,x
 suite_init3
 	ldx #VILLE
 	lda _team_combats_coffres,x
@@ -67,23 +67,23 @@ suite_init3
 	beq suite_init4
 	ldx #19
 	lda #0
-	sta _L23,x
+	sta _L10,x
 suite_init4
 	ldx #VILLE
 	lda _team_combats_coffres,x
 	and #4
 	beq suite_init5
-	ldx #13
+	ldx #19
 	lda #0
-	sta _L43,x
+	sta _L23,x
 suite_init5
 	ldx #VILLE
 	lda _team_combats_coffres,x
 	and #8
 	beq suite_init6
-	ldx #7
+	ldx #13
 	lda #0
-	sta _L35,x
+	sta _L43,x
 suite_init6
 	lda _team_boat
 	sta a_un_bateau			; drapeau bateau : 1 on a un bateau / 0 pas de bateau
@@ -664,25 +664,25 @@ overflow_coffres ; on met le max
 	sta _character_ri+1
 suite_overflow
 	lda ligne_map
-	cmp #11
+	cmp #1
 	bne suite_coffre1
 	lda #1
 	sta op1
 suite_coffre1
 	lda ligne_map
-	cmp #25
+	cmp #10
 	bne suite_coffre2
 	lda #2
 	sta op1
 suite_coffre2
 	lda ligne_map
-	cmp #32
+	cmp #23
 	bne suite_coffre3
 	lda #4
 	sta op1
 suite_coffre3
 	lda ligne_map
-	cmp #35
+	cmp #43
 	bne suite_coffre4
 	lda #8
 	sta op1
