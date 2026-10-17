@@ -130,6 +130,16 @@ public class CityCode {
     }
 
     private void manageThief(AsmFile specificFile) {
+        LabelDescriptor animalerieOld = referenceFile.getLabelDescriptor("t_animalerie_1");
+        LabelDescriptor animalerie = specificFile.getLabelDescriptor("t_animalerie_1");
+        if(animalerieOld != null && animalerie == null) {
+            LabelDescriptor labelHerbo = referenceFile.getLabelDescriptor("herboriste_");
+            LabelDescriptor labelAnimalerie = referenceFile.getLabelDescriptor("animalerie_");
+            affText.copyLines(labelHerbo.lineNumberInMultiLine()+3, labelAnimalerie.lineNumberInMultiLine()+3, 1);
+            affText.removeLines(labelHerbo.lineNumberInMultiLine()+4,1);
+            affText.removeLines(labelAnimalerie.lineNumberInMultiLine(), 19);
+        }
+
         LabelDescriptor voleurOld = referenceFile.getLabelDescriptor("t_voleur_1");
         LabelDescriptor voleur = specificFile.getLabelDescriptor("t_voleur_1");
         if(voleurOld != null && voleur == null) {
