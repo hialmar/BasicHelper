@@ -95,7 +95,7 @@ public class CityCode {
         LabelDescriptor cle2 = referenceFile.getLabelDescriptor("suite_init2");
         if (cle2 != null && keyTile2 != null)
             initVars.hideTile(cle2, keyTile2);
-        TileDescriptor chestTile = mapData.searchTile("$57", line0.lineNumberInMultiLine());
+        TileDescriptor chestTile = mapData.searchTile("$56", line0.lineNumberInMultiLine());
         System.out.println("Mdp: "+chestTile);
         LabelDescriptor chest1 = referenceFile.getLabelDescriptor("suite_init2_2");
         if (chest1 != null && chestTile != null)

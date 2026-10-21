@@ -49,9 +49,9 @@ suite_init1
 suite_init2
 	lda mot_de_passe
 	beq suite_init2_2
-	ldx #26
+	ldx #14
 	lda #0
-	sta _L03,x
+	sta _L10,x
 suite_init2_2
 	ldx #VILLE
 	lda _team_combats_coffres,x
